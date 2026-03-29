@@ -12,4 +12,14 @@
     - implemented title screen and setup
     - implemented auto complete
     - implemented filetypes
-    
+1.3 revisions and improvements
+    - Implemented root and permissions
+        *NEEDS work
+    - NANO txt editor
+    - populated boot folder
+    - added reboot procedure
+        *NEEDS work
+    - su and sudo commands
+        *sudo needs testing
+    - arrow up for last commands
+    - 

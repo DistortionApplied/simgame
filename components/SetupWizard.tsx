@@ -6,6 +6,7 @@ interface SetupData {
   playerName: string;
   computerName: string;
   rootPassword: string;
+  userPassword: string;
 }
 
 interface SetupWizardProps {
@@ -18,13 +19,15 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
   const [setupData, setSetupData] = useState<SetupData>({
     playerName: '',
     computerName: '',
-    rootPassword: ''
+    rootPassword: '',
+    userPassword: ''
   });
 
   const steps = [
     { title: 'Player Name', description: 'Enter your name for this session' },
     { title: 'Computer Setup', description: 'Configure your Linux system' },
     { title: 'Security', description: 'Set up system security' },
+    { title: 'User Account', description: 'Set up your user password' },
     { title: 'Confirmation', description: 'Review your setup' }
   ];
 
@@ -115,7 +118,32 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
           </div>
         );
 
-      case 3: // Confirmation
+      case 3: // User Account
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-green-400 font-semibold mb-2">Your Password</label>
+              <input
+                type="password"
+                value={setupData.userPassword}
+                onChange={(e) => updateSetupData('userPassword', e.target.value)}
+                className="w-full bg-gray-800 border border-green-400/50 rounded px-3 py-2 text-white placeholder-gray-400 focus:border-green-400 focus:outline-none"
+                placeholder="Enter your user password"
+                autoFocus
+              />
+              <p className="text-gray-400 text-sm mt-2">
+                This password will be used to switch between user accounts with the &apos;su&apos; command.
+              </p>
+            </div>
+            <div className="bg-yellow-900/30 border border-yellow-600/50 rounded p-3">
+              <p className="text-yellow-400 text-sm">
+                🔑 Remember both passwords! You&apos;ll need them for sudo (root password) and su (user password) commands.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 4: // Confirmation
         return (
           <div className="space-y-6">
             <div className="bg-gray-800/50 rounded p-4">
@@ -124,6 +152,7 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
                 <div><span className="text-gray-400">Player Name:</span> <span className="text-white">{setupData.playerName}</span></div>
                 <div><span className="text-gray-400">Computer Name:</span> <span className="text-white">{setupData.computerName}</span></div>
                 <div><span className="text-gray-400">Root Password:</span> <span className="text-white">{'*'.repeat(setupData.rootPassword.length)}</span></div>
+                <div><span className="text-gray-400">User Password:</span> <span className="text-white">{'*'.repeat(setupData.userPassword.length)}</span></div>
               </div>
             </div>
             <div className="bg-blue-900/30 border border-blue-600/50 rounded p-3">
@@ -144,7 +173,7 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
       case 0: return setupData.playerName.trim().length > 0;
       case 1: return setupData.computerName.trim().length > 0 && /^[a-zA-Z0-9_-]+$/.test(setupData.computerName);
       case 2: return setupData.rootPassword.length >= 4;
-      case 3: return true; // difficulty always has a default
+      case 3: return setupData.userPassword.length >= 4;
       case 4: return true; // confirmation step
       default: return false;
     }

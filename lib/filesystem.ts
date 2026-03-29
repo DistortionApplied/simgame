@@ -19,6 +19,7 @@ export interface User {
   gid: number;
   home: string;
   shell: string;
+  password?: string; // hashed password
 }
 
 export interface Group {
@@ -53,6 +54,7 @@ interface GameSetup {
   playerName: string;
   computerName: string;
   rootPassword: string;
+  userPassword: string;
   createdAt: string;
 }
 
@@ -73,38 +75,21 @@ export class FakeFileSystem {
     // Try to load from localStorage first
     if (!this.loadFromLocalStorage()) {
       // If no saved state or loading failed, create fresh filesystem
-
-      // Create a temporary currentUser for filesystem creation
-      const tempUserName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
-      this.currentUser = {
-        uid: 1000,
-        name: tempUserName,
-        gid: 1000,
-        home: `/home/${tempUserName}`,
-        shell: '/bin/bash'
-      };
-
-      this.root = this.createInitialFileSystem();
       this.createUsersAndGroups();
-      this.currentUser = this.users.get(tempUserName)!;
+      this.ensureEssentialUsersAndGroups();
+      const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+      this.currentUser = this.users.get(userName) || this.users.get('user')!;
+      this.root = this.createInitialFileSystem();
       this.currentDirectory = this.root;
     }
 
     // Ensure properties are initialized (TypeScript requirement)
     if (!this.root) {
-      // Create a temporary currentUser for filesystem creation
-      const tempUserName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
-      this.currentUser = {
-        uid: 1000,
-        name: tempUserName,
-        gid: 1000,
-        home: `/home/${tempUserName}`,
-        shell: '/bin/bash'
-      };
-
-      this.root = this.createInitialFileSystem();
       this.createUsersAndGroups();
-      this.currentUser = this.users.get(tempUserName)!;
+      this.ensureEssentialUsersAndGroups();
+      const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+      this.currentUser = this.users.get(userName) || this.users.get('user')!;
+      this.root = this.createInitialFileSystem();
       this.currentDirectory = this.root;
     }
 
@@ -169,7 +154,7 @@ export class FakeFileSystem {
     this.createDirectory('spool', vari);
     this.createDirectory('tmp', vari);
 
-   // Create user home directory
+    // Create user home directory
     const home = root.children!.get('home')!;
     const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
     const userHome = this.createDirectory(userName, home);
@@ -196,7 +181,8 @@ export class FakeFileSystem {
       name: 'root',
       gid: 0,
       home: '/root',
-      shell: '/bin/bash'
+      shell: '/bin/bash',
+      password: this.setupData?.rootPassword || 'root'
     });
 
     // Create regular user based on setup data
@@ -208,7 +194,8 @@ export class FakeFileSystem {
       name: userName,
       gid: 1000,
       home: userHome,
-      shell: '/bin/bash'
+      shell: '/bin/bash',
+      password: this.setupData?.userPassword || 'user' // Password from setup or default
     });
 
     // Create groups
@@ -225,6 +212,57 @@ export class FakeFileSystem {
     });
   }
 
+  private ensureEssentialUsersAndGroups(): void {
+    // Ensure root user exists
+    if (!this.users.has('root')) {
+      this.users.set('root', {
+        uid: 0,
+        name: 'root',
+        gid: 0,
+        home: '/root',
+        shell: '/bin/bash',
+        password: this.setupData?.rootPassword || 'root'
+      });
+    }
+
+    // Ensure root group exists
+    if (!Array.from(this.groups.values()).some(g => g.gid === 0)) {
+      this.groups.set('root', {
+        gid: 0,
+        name: 'root',
+        members: ['root']
+      });
+    }
+
+    // Ensure current user exists (based on setup data)
+    const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+    if (!this.users.has(userName)) {
+      const userHome = `/home/${userName}`;
+      this.users.set(userName, {
+        uid: 1000,
+        name: userName,
+        gid: 1000,
+        home: userHome,
+        shell: '/bin/bash',
+        password: this.setupData?.userPassword || 'user'
+      });
+    }
+
+    // Ensure current user's group exists
+    if (!Array.from(this.groups.values()).some(g => g.gid === 1000)) {
+      this.groups.set(userName, {
+        gid: 1000,
+        name: userName,
+        members: [userName]
+      });
+    }
+
+    // Ensure currentUser is set correctly
+    if (!this.currentUser || !this.users.has(this.currentUser.name)) {
+      this.currentUser = this.users.get(userName) || this.users.get('user')!;
+    }
+  }
+
   private populateSystemFiles(): void {
     const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
 
@@ -238,9 +276,22 @@ export class FakeFileSystem {
 
     this.createFile('/etc/group',
       'root:x:0:\n' +
-      'user:x:1000:\n' +
+      `${userName}:x:1000:\n` +
       'daemon:x:1:\n' +
       'bin:x:2:\n'
+    );
+
+    // /etc/sudoers - sudo configuration
+    this.createFile('/etc/sudoers',
+      '# sudoers file\n' +
+      '# This file controls who can run what commands as what users\n' +
+      '#\n' +
+      '# User privilege specification\n' +
+      'root    ALL=(ALL:ALL) ALL\n' +
+      userName + '    ALL=(ALL:ALL) ALL\n' +
+      '#\n' +
+      '# Allow members of group sudo to execute any command\n' +
+      '# %sudo   ALL=(ALL:ALL) ALL\n'
     );
 
     this.createFile('/etc/hostname', 'linux-sim');
@@ -272,11 +323,9 @@ export class FakeFileSystem {
     );
 
     // /home/user files
-    const computerName = this.setupData?.computerName || 'linux-sim';
-
     this.createFile(`/home/${userName}/README.txt`,
       `Welcome to Linux Sim Game, ${this.setupData?.playerName || 'Player'}!\n\n` +
-      `You are now connected to ${computerName} in a fully simulated Linux environment.\n` +
+      `You are now connected to ${this.setupData?.computerName || 'linux-sim'} in a fully simulated Linux environment.\n` +
       'Explore, create, and manage files just like on a real system!\n\n' +
       'Key Features:\n' +
       '  • Realistic directory structure (/usr, /var, /etc, /home, etc.)\n' +
@@ -299,6 +348,9 @@ export class FakeFileSystem {
       '  touch <file>             - Create empty file\n' +
       '  rm <file>                - Remove file\n' +
       '  cat <file>               - Display file contents\n' +
+      '  nano <file>              - Edit file with nano text editor\n' +
+      '  sudo <cmd>               - Execute command as root\n' +
+      '  su [user]                - Switch to another user account\n' +
       '  cp <src> <dst>           - Copy file\n' +
       '  mv <src> <dst>           - Move/rename file\n' +
       '  chmod <mode> <file>      - Change permissions (octal)\n' +
@@ -325,7 +377,7 @@ export class FakeFileSystem {
       '    rm README.txt     → Your guide is gone forever\n' +
       '  Use "reset" to start fresh if you break things too badly!\n\n' +
       'Your Setup:\n' +
-      `  Computer: ${computerName}\n` +
+      `  Computer: ${this.setupData?.computerName || 'linux-sim'}\n` +
       `  User: ${userName}\n\n` +
       'Getting Started:\n' +
       '  Try these commands:\n' +
@@ -350,10 +402,69 @@ export class FakeFileSystem {
     );
 
     // Create some basic binaries (just placeholder files)
-    const binaries = ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'help', 'save', 'reset', 'clear'];
+    const binaries = ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'help', 'save', 'reset', 'clear', 'reboot'];
     binaries.forEach(bin => {
       this.createFile(`/bin/${bin}.bin`, '#!/bin/bash\n# ${bin} command\n');
     });
+
+    // /boot files (kernel and boot loader files)
+    // Kernel images
+    this.createFile('/boot/vmlinuz-5.15.0-91-generic', '[Linux kernel image - compressed]');
+    this.createFile('/boot/vmlinuz-5.15.0-89-generic', '[Linux kernel image - compressed]');
+
+    // Initial RAM disk images
+    this.createFile('/boot/initrd.img-5.15.0-91-generic', '[Initial RAM disk image]');
+    this.createFile('/boot/initrd.img-5.15.0-89-generic', '[Initial RAM disk image]');
+    this.createFile('/boot/initramfs-5.15.0-91-generic.img', '[Initial RAM filesystem image]');
+    this.createFile('/boot/initramfs-5.15.0-89-generic.img', '[Initial RAM filesystem image]');
+
+    // Kernel symbol tables
+    this.createFile('/boot/System.map-5.15.0-91-generic', '[Kernel symbol table]');
+    this.createFile('/boot/System.map-5.15.0-89-generic', '[Kernel symbol table]');
+
+    // Kernel configuration files
+    this.createFile('/boot/config-5.15.0-91-generic', '# Linux kernel configuration\nCONFIG_DEFAULT_HOSTNAME="linux-sim"\nCONFIG_LOCALVERSION="-generic"');
+    this.createFile('/boot/config-5.15.0-89-generic', '# Linux kernel configuration\nCONFIG_DEFAULT_HOSTNAME="linux-sim"\nCONFIG_LOCALVERSION="-generic"');
+
+    // GRUB boot loader directory and files
+    const grubDir = this.createDirectory('grub', this.root.children!.get('boot')!);
+
+    // GRUB configuration
+    this.createFile('/boot/grub/grub.cfg',
+      '# GRUB boot loader configuration\n' +
+      'set default=0\n' +
+      'set timeout=5\n' +
+      '\n' +
+      'menuentry "Ubuntu" {\n' +
+      '    set root=(hd0,1)\n' +
+      '    linux /boot/vmlinuz-5.15.0-91-generic root=/dev/sda1 ro quiet splash\n' +
+      '    initrd /boot/initrd.img-5.15.0-91-generic\n' +
+      '}\n' +
+      '\n' +
+      'menuentry "Ubuntu (recovery mode)" {\n' +
+      '    set root=(hd0,1)\n' +
+      '    linux /boot/vmlinuz-5.15.0-91-generic root=/dev/sda1 ro recovery nomodeset\n' +
+      '    initrd /boot/initrd.img-5.15.0-91-generic\n' +
+      '}\n' +
+      '\n' +
+      'menuentry "Previous Linux versions" {\n' +
+      '    set root=(hd0,1)\n' +
+      '    linux /boot/vmlinuz-5.15.0-89-generic root=/dev/sda1 ro quiet splash\n' +
+      '    initrd /boot/initrd.img-5.15.0-89-generic\n' +
+      '}'
+    );
+
+    // GRUB environment block
+    this.createFile('/boot/grub/grubenv', '# GRUB environment block\nsaved_entry=Ubuntu\n');
+
+    // EFI boot files (for systems with EFI)
+    const efiDir = this.createDirectory('EFI', this.root.children!.get('boot')!);
+    const ubuntuDir = this.createDirectory('ubuntu', efiDir);
+    this.createFile('/boot/EFI/ubuntu/grubx64.efi', '[EFI GRUB bootloader]');
+    this.createFile('/boot/EFI/ubuntu/shimx64.efi', '[EFI shim bootloader]');
+
+    // Boot partition files
+    this.createFile('/boot/.vmlinuz.hmac', '[Kernel HMAC signature]');
   }
 
   private createManPages(): void {
@@ -361,630 +472,756 @@ export class FakeFileSystem {
     this.createFile('/usr/share/man/man1/ls.1', `LS(1)                        User Commands                       LS(1)
 
 NAME
-       ls - list directory contents
+        ls - list directory contents
 
 SYNOPSIS
-       ls [OPTION]... [FILE]...
+        ls [OPTION]... [FILE]...
 
 DESCRIPTION
-       List information about the FILEs (the current directory by default).
-       Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
+        List information about the FILEs (the current directory by default).
+        Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
 
-       Mandatory arguments to long options are mandatory for short options too.
+        Mandatory arguments to long options are mandatory for short options too.
 
 OPTIONS
-       -a, --all
-              do not ignore entries starting with .
+        -a, --all
+               do not ignore entries starting with .
 
-       -l     use a long listing format
+        -l     use a long listing format
 
 EXAMPLES
-       ls
-              List the contents of the current directory.
+        ls
+               List the contents of the current directory.
 
-       ls -l
-              List the contents of the current directory in long format.
+        ls -l
+               List the contents of the current directory in long format.
 
-       ls -a
-              List all files, including hidden ones.
+        ls -a
+               List all files, including hidden ones.
 
 SEE ALSO
-       dir(1), vdir(1)
+        dir(1), vdir(1)
 `);
 
     // cd(1) - change directory
     this.createFile('/usr/share/man/man1/cd.1', `CD(1)                        User Commands                       CD(1)
 
 NAME
-       cd - change the working directory
+        cd - change the working directory
 
 SYNOPSIS
-       cd [DIRECTORY]
+        cd [DIRECTORY]
 
 DESCRIPTION
-       Change the current directory to DIRECTORY. The default DIRECTORY is the
-       value of the HOME shell variable.
+        Change the current directory to DIRECTORY. The default DIRECTORY is the
+        value of the HOME shell variable.
 
-       CD can also be entered as CHDIR. If DIRECTORY begins with a slash, it
-       is interpreted as an absolute path. Otherwise, it is interpreted as a
-       relative path to the current directory.
+        CD can also be entered as CHDIR. If DIRECTORY begins with a slash, it
+        is interpreted as an absolute path. Otherwise, it is interpreted as a
+        relative path to the current directory.
 
 EXAMPLES
-       cd
-              Change to the user's home directory.
+        cd
+               Change to the user's home directory.
 
-       cd /tmp
-              Change to the /tmp directory.
+        cd /tmp
+               Change to the /tmp directory.
 
-       cd ..
-              Change to the parent directory.
+        cd ..
+               Change to the parent directory.
 
 SEE ALSO
-       pwd(1), bash(1)
+        pwd(1), bash(1)
 `);
 
     // pwd(1) - print working directory
     this.createFile('/usr/share/man/man1/pwd.1', `PWD(1)                       User Commands                      PWD(1)
 
 NAME
-       pwd - print name of current/working directory
+        pwd - print name of current/working directory
 
 SYNOPSIS
-       pwd [OPTION]...
+        pwd [OPTION]...
 
 DESCRIPTION
-       Print the full filename of the current working directory.
+        Print the full filename of the current working directory.
 
 OPTIONS
-       -L, --logical
-              use PWD from environment, even if it contains symlinks
+        -L, --logical
+               use PWD from environment, even if it contains symlinks
 
-       -P, --physical
-              avoid all symlinks
+        -P, --physical
+               avoid all symlinks
 
 EXAMPLES
-       pwd
-              Print the current working directory.
+        pwd
+               Print the current working directory.
 
 SEE ALSO
-        getcwd(3), cd(1)
+         getcwd(3), cd(1)
 `);
 
     // mkdir(1) - make directories
     this.createFile('/usr/share/man/man1/mkdir.1', `MKDIR(1)                     User Commands                    MKDIR(1)
 
 NAME
-       mkdir - make directories
+        mkdir - make directories
 
 SYNOPSIS
-       mkdir [OPTION]... DIRECTORY...
+        mkdir [OPTION]... DIRECTORY...
 
 DESCRIPTION
-       Create the DIRECTORY(ies), if they do not already exist.
+        Create the DIRECTORY(ies), if they do not already exist.
 
 OPTIONS
-       -p, --parents
-              no error if existing, make parent directories as needed
+        -p, --parents
+               no error if existing, make parent directories as needed
 
 EXAMPLES
-       mkdir test
-              Create a directory called 'test'.
+        mkdir test
+               Create a directory called 'test'.
 
-       mkdir -p a/b/c
-              Create nested directories.
-
-SEE ALSO
-       rmdir(1), mkdir(2)
-`);
-
-    // rm(1) - remove files or directories
-    this.createFile('/usr/share/man/man1/rm.1', `RM(1)                        User Commands                       RM(1)
-
-NAME
-       rm - remove files or directories
-
-SYNOPSIS
-       rm [OPTION]... FILE...
-
-DESCRIPTION
-       This manual page documents the GNU version of rm. rm removes each
-       specified file. By default, it does not remove directories.
-
-       If the -I or --interactive=once option is given, and there are more
-       than three files or the -r, -R, or --recursive are given, then rm
-       prompts the user for whether to proceed.
-
-OPTIONS
-       -f, --force
-              ignore nonexistent files and arguments, never prompt
-
-       -i     prompt before every removal
-
-       -I     prompt once before removing more than three files
-
-       -r, -R, --recursive
-              remove directories and their contents recursively
-
-EXAMPLES
-       rm file.txt
-              Remove a file.
-
-       rm -r directory
-              Remove a directory and all its contents.
+        mkdir -p a/b/c
+               Create nested directories.
 
 SEE ALSO
-       unlink(2), rmdir(2), chattr(1)
-`);
-
-    // touch(1) - change file timestamps
-    this.createFile('/usr/share/man/man1/touch.1', `TOUCH(1)                     User Commands                    TOUCH(1)
-
-NAME
-       touch - change file timestamps
-
-SYNOPSIS
-       touch [OPTION]... FILE...
-
-DESCRIPTION
-       Update the access and modification times of each FILE to the current
-       time. A FILE argument that does not exist is created empty, unless -c
-       or -h is supplied.
-
-       A FILE argument string of - is handled specially and causes touch to
-       change the times of the file associated with standard output.
-
-OPTIONS
-       -c, --no-create
-              do not create any files
-
-EXAMPLES
-       touch file.txt
-              Create file.txt if it doesn't exist, or update its timestamp.
-
-SEE ALSO
-        stat(2), utime(2)
-`);
-
-    // cat(1) - concatenate files and print on the standard output
-    this.createFile('/usr/share/man/man1/cat.1', `CAT(1)                       User Commands                      CAT(1)
-
-NAME
-       cat - concatenate files and print on the standard output
-
-SYNOPSIS
-       cat [OPTION]... [FILE]...
-
-DESCRIPTION
-       Concatenate FILE(s) to standard output.
-
-       With no FILE, or when FILE is -, read standard input.
-
-OPTIONS
-       -n, --number
-              number all output lines
-
-       -b, --number-nonblank
-              number nonempty output lines
-
-       -s, --squeeze-blank
-              suppress repeated empty output lines
-
-EXAMPLES
-       cat file.txt
-              Display the contents of file.txt.
-
-       cat file1.txt file2.txt
-              Display the contents of multiple files.
-
-SEE ALSO
-       tac(1), more(1), less(1)
-`);
-
-    // cp(1) - copy files and directories
-    this.createFile('/usr/share/man/man1/cp.1', `CP(1)                        User Commands                       CP(1)
-
-NAME
-       cp - copy files and directories
-
-SYNOPSIS
-       cp [OPTION]... SOURCE DEST
-       cp [OPTION]... SOURCE... DIRECTORY
-
-DESCRIPTION
-       Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
-
-OPTIONS
-       -f, --force
-              if an existing destination file cannot be opened, remove it
-
-       -i, --interactive
-              prompt before overwrite
-
-       -r, -R, --recursive
-              copy directories recursively
-
-EXAMPLES
-       cp file1 file2
-              Copy file1 to file2.
-
-       cp file1 file2 dir/
-              Copy multiple files to a directory.
-
-SEE ALSO
-       mv(1), install(1)
-`);
-
-    // mv(1) - move (rename) files
-    this.createFile('/usr/share/man/man1/mv.1', `MV(1)                        User Commands                       MV(1)
-
-NAME
-       mv - move (rename) files
-
-SYNOPSIS
-       mv [OPTION]... SOURCE DEST
-       mv [OPTION]... SOURCE... DIRECTORY
-
-DESCRIPTION
-       Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
-
-       Mandatory arguments to long options are mandatory for short options too.
-
-OPTIONS
-       -f, --force
-              do not prompt before overwriting
-
-       -i, --interactive
-              prompt before overwrite
-
-EXAMPLES
-       mv file1 file2
-              Rename file1 to file2.
-
-       mv file1 file2 dir/
-              Move multiple files to a directory.
-
-SEE ALSO
-       cp(1), rename(2)
-`);
-
-    // chmod(1) - change file mode bits
-    this.createFile('/usr/share/man/man1/chmod.1', `CHMOD(1)                     User Commands                    CHMOD(1)
-
-NAME
-       chmod - change file mode bits
-
-SYNOPSIS
-       chmod [OPTION]... MODE[,MODE]... FILE...
-       chmod [OPTION]... OCTAL-MODE FILE...
-
-DESCRIPTION
-       This manual page documents the GNU version of chmod. chmod changes the
-       file mode bits of each given file according to mode, which can be
-       either a symbolic representation of changes to make, or an octal
-       number representing the bit pattern for the new mode bits.
-
-EXAMPLES
-       chmod 755 file
-              Set file permissions to rwxr-xr-x.
-
-       chmod +x script.sh
-              Make script.sh executable.
-
-SEE ALSO
-       chown(1), chgrp(1), chmod(2)
-`);
-
-    // whoami(1) - print effective userid
-    this.createFile('/usr/share/man/man1/whoami.1', `WHOAMI(1)                    User Commands                   WHOAMI(1)
-
-NAME
-        whoami - print effective userid
-
-SYNOPSIS
-        whoami [OPTION]...
-
-DESCRIPTION
-        Print the user name associated with the current effective user ID.
-        Same as id -un.
-
-OPTIONS
-        --help display this help and exit
-
-        --version
-               output version information and exit
-
-EXAMPLES
-        whoami
-               Print the current user name.
-
-SEE ALSO
-        id(1), who(1)
-`);
-
-    // id(1) - print real and effective user and group IDs
-    this.createFile('/usr/share/man/man1/id.1', `ID(1)                        User Commands                       ID(1)
-
-NAME
-        id - print real and effective user and group IDs
-
-SYNOPSIS
-        id [OPTION]... [USER]
-
-DESCRIPTION
-        Print user and group information for the specified USER, or (when USER
-        omitted) for the current user.
-
-OPTIONS
-        -u, --user
-               print only the effective user ID
-
-        -g, --group
-               print only the effective group ID
-
-        -n, --name
-               print a name instead of a number, for -ugG
-
-EXAMPLES
-        id
-               Print information about the current user.
-
-SEE ALSO
-        whoami(1), groups(1)
-`);
-
-    // echo(1) - display a line of text
-    this.createFile('/usr/share/man/man1/echo.1', `ECHO(1)                      User Commands                     ECHO(1)
-
-NAME
-        echo - display a line of text
-
-SYNOPSIS
-        echo [SHORT-OPTION]... [STRING]...
-        echo LONG-OPTION
-
-DESCRIPTION
-        Echo the STRING(s) to standard output.
-
-        -n     do not output the trailing newline
-
-        -e     enable interpretation of backslash escapes
-
-        -E     disable interpretation of backslash escapes (default)
-
-EXAMPLES
-        echo hello world
-               Print "hello world" followed by a newline.
-
-        echo -n hello world
-               Print "hello world" without a trailing newline.
-
-SEE ALSO
-        printf(1)
-`);
-
-    // grep(1) - print lines that match patterns
-    this.createFile('/usr/share/man/man1/grep.1', `GREP(1)                      User Commands                     GREP(1)
-
-NAME
-        grep - print lines that match patterns
-
-SYNOPSIS
-        grep [OPTION...] PATTERNS [FILE...]
-
-DESCRIPTION
-        grep searches for PATTERNS in each FILE. PATTERNS is one or more
-        patterns separated by newline characters, and grep prints each line
-        that matches a pattern.
-
-OPTIONS
-        -i, --ignore-case
-               ignore case distinctions
-
-        -v, --invert-match
-               select non-matching lines
-
-        -n, --line-number
-               print line number with output lines
-
-EXAMPLES
-        grep "hello" file.txt
-               Print lines containing "hello".
-
-        grep -i "HELLO" file.txt
-               Case-insensitive search.
-
-SEE ALSO
-        sed(1), awk(1)
-`);
-
-    // find(1) - search for files in a directory hierarchy
-    this.createFile('/usr/share/man/man1/find.1', `FIND(1)                      User Commands                     FIND(1)
-
-NAME
-        find - search for files in a directory hierarchy
-
-SYNOPSIS
-        find [path...] [expression]
-
-DESCRIPTION
-        find searches the directory tree rooted at each given file name by
-        evaluating the given expression from left to right, according to the
-        rules of precedence, until the outcome is known.
-
-EXPRESSIONS
-        -name pattern
-               Base of file name matches shell pattern pattern.
-
-        -type c
-               File is of type c: f=regular file, d=directory
-
-EXAMPLES
-        find /home -name "*.txt"
-               Find all .txt files in /home.
-
-        find . -name "test*"
-               Find all files starting with "test" in current directory.
-
-SEE ALSO
-        locate(1), xargs(1)
-`);
-
-    // man(1) - an interface to the system reference manuals
-    this.createFile('/usr/share/man/man1/man.1', `MAN(1)                       User Commands                      MAN(1)
-
-NAME
-        man - an interface to the system reference manuals
-
-SYNOPSIS
-        man [man options] [[section] page ...] ...
-        man -k [apropos options] regexp ...
-        man -K [man options] [section] term ...
-        man -f [whatis options] page ...
-        man -l [man options] file ...
-        man -w|-W [man options] page ...
-
-DESCRIPTION
-        man is the system's manual pager. Each page argument given to man is
-        normally the name of a program, utility or function. The manual page
-        associated with each of these arguments is then found and displayed.
-
-EXAMPLES
-        man ls
-               Display the manual page for ls.
-
-        man -k printf
-               Search for manual pages containing "printf".
-
-SEE ALSO
-        apropos(1), whatis(1), less(1)
-`);
-
-    // help(1) - display help information
-    this.createFile('/usr/share/man/man1/help.1', `HELP(1)                      User Commands                     HELP(1)
-
-NAME
-        help - display help information
-
-SYNOPSIS
-        help [command]
-
-DESCRIPTION
-        Display helpful information about builtin commands. If COMMAND is
-        specified, display help for that command. Otherwise, display a list
-        of all available commands.
-
-EXAMPLES
-        help
-               Display a list of all available commands.
-
-        help ls
-               Display help for the ls command.
-
-SEE ALSO
-        man(1)
-`);
-
-    // save(1) - save filesystem state
-    this.createFile('/usr/share/man/man1/save.1', `SAVE(1)                      Linux Sim Commands               SAVE(1)
-
-NAME
-        save - save filesystem state to local storage
-
-SYNOPSIS
-        save
-
-DESCRIPTION
-        Save the current state of the filesystem to the browser's local storage.
-        This allows the filesystem state to persist between browser sessions.
-
-        The save operation includes all files, directories, permissions, and
-        current directory location.
-
-EXAMPLES
-        save
-               Save the current filesystem state.
-
-SEE ALSO
-        reset(1)
-`);
-
-    // reset(1) - reset filesystem to initial state
-    this.createFile('/usr/share/man/man1/reset.1', `RESET(1)                     Linux Sim Commands               RESET(1)
-
-NAME
-        reset - reset filesystem to initial state
-
-SYNOPSIS
-        reset
-
-DESCRIPTION
-        Clear the saved filesystem state from local storage and reset the
-        filesystem to its initial state. This will remove all user-created
-        files and directories.
-
-        Note: This command only clears the saved state. You must refresh the
-        page to see the reset filesystem.
-
-EXAMPLES
-        reset
-               Clear saved filesystem state.
-
-SEE ALSO
-        save(1)
-`);
-
-    // clear(1) - clear the terminal screen
-    this.createFile('/usr/share/man/man1/clear.1', `CLEAR(1)                     User Commands                    CLEAR(1)
-
-NAME
-        clear - clear the terminal screen
-
-SYNOPSIS
-        clear
-
-DESCRIPTION
-        Clear the terminal screen, removing all previous output and positioning
-        the cursor at the top of the screen.
-
-EXAMPLES
-        clear
-               Clear the terminal screen.
-
-SEE ALSO
-        reset(1)
+        rmdir(1), mkdir(2)
 `);
 
     // rmdir(1) - remove empty directories
     this.createFile('/usr/share/man/man1/rmdir.1', `RMDIR(1)                     User Commands                    RMDIR(1)
 
 NAME
-       rmdir - remove empty directories
+        rmdir - remove empty directories
 
 SYNOPSIS
-       rmdir [OPTION]... DIRECTORY...
+        rmdir [OPTION]... DIRECTORY...
 
 DESCRIPTION
-       Remove the DIRECTORY(ies), if they are empty.
+        Remove the DIRECTORY(ies), if they are empty.
 
-       Mandatory arguments to long options are mandatory for short options too.
+        Mandatory arguments to long options are mandatory for short options too.
 
 OPTIONS
-       --ignore-fail-on-non-empty
-              ignore each failure that is solely because a directory is non-empty
+        --ignore-fail-on-non-empty
+               ignore each failure that is solely because a directory is non-empty
 
-       -p, --parents
-              remove DIRECTORY and its ancestors; e.g., 'rmdir -p a/b/c' is
-              similar to 'rmdir a/b/c a/b a'
+        -p, --parents
+               remove DIRECTORY and its ancestors; e.g., 'rmdir -p a/b/c' is
+               similar to 'rmdir a/b/c a/b a'
 
 EXAMPLES
-       rmdir test
-              Remove the directory 'test' if it is empty.
+        rmdir test
+               Remove the directory 'test' if it is empty.
 
-       rmdir -p a/b/c
-              Remove directory 'a/b/c' and then 'a/b' and 'a' if they become empty.
+        rmdir -p a/b/c
+               Remove directory 'a/b/c' and then 'a/b' and 'a' if they become empty.
 
 SEE ALSO
-       rm(1), mkdir(1)
+        rm(1), mkdir(1)
+`);
+
+    // touch(1) - change file timestamps
+    this.createFile('/usr/share/man/man1/touch.1', `TOUCH(1)                     User Commands                    TOUCH(1)
+
+NAME
+        touch - change file timestamps
+
+SYNOPSIS
+        touch [OPTION]... FILE...
+
+DESCRIPTION
+        Update the access and modification times of each FILE to the current
+        time. A FILE argument that does not exist is created empty, unless -c
+        or -h is supplied.
+
+        A FILE argument string of - is handled specially and causes touch to
+        change the times of the file associated with standard output.
+
+OPTIONS
+        -c, --no-create
+               do not create any files
+
+EXAMPLES
+        touch file.txt
+               Create file.txt if it doesn't exist, or update its timestamp.
+
+SEE ALSO
+         stat(2), utime(2)
+`);
+
+    // rm(1) - remove files or directories
+    this.createFile('/usr/share/man/man1/rm.1', `RM(1)                        User Commands                       RM(1)
+
+NAME
+        rm - remove files or directories
+
+SYNOPSIS
+        rm [OPTION]... FILE...
+
+DESCRIPTION
+        This manual page documents the GNU version of rm. rm removes each
+        specified file. By default, it does not remove directories.
+
+        If the -I or --interactive=once option is given, and there are more
+        than three files or the -r, -R, or --recursive are given, then rm
+        prompts the user for whether to proceed.
+
+OPTIONS
+        -f, --force
+               ignore nonexistent files and arguments, never prompt
+
+        -i     prompt before every removal
+
+        -I     prompt once before removing more than three files
+
+        -r, -R, --recursive
+               remove directories and their contents recursively
+
+EXAMPLES
+        rm file.txt
+               Remove a file.
+
+        rm -r directory
+               Remove a directory and all its contents.
+
+SEE ALSO
+        unlink(2), rmdir(2), chattr(1)
+`);
+
+    // cat(1) - concatenate files and print on the standard output
+    this.createFile('/usr/share/man/man1/cat.1', `CAT(1)                       User Commands                      CAT(1)
+
+NAME
+        cat - concatenate files and print on the standard output
+
+SYNOPSIS
+        cat [OPTION]... [FILE]...
+
+DESCRIPTION
+        Concatenate FILE(s) to standard output.
+
+        With no FILE, or when FILE is -, read standard input.
+
+OPTIONS
+        -n, --number
+               number all output lines
+
+        -b, --number-nonblank
+               number nonempty output lines
+
+        -s, --squeeze-blank
+               suppress repeated empty output lines
+
+EXAMPLES
+        cat file.txt
+               Display the contents of file.txt.
+
+        cat file1.txt file2.txt
+               Display the contents of multiple files.
+
+SEE ALSO
+        tac(1), more(1), less(1)
+`);
+
+    // cp(1) - copy files and directories
+    this.createFile('/usr/share/man/man1/cp.1', `CP(1)                        User Commands                       CP(1)
+
+NAME
+        cp - copy files and directories
+
+SYNOPSIS
+        cp [OPTION]... SOURCE DEST
+        cp [OPTION]... SOURCE... DIRECTORY
+
+DESCRIPTION
+        Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
+
+OPTIONS
+        -f, --force
+               if an existing destination file cannot be opened, remove it
+
+        -i, --interactive
+               prompt before overwrite
+
+        -r, -R, --recursive
+               copy directories recursively
+
+EXAMPLES
+        cp file1 file2
+               Copy file1 to file2.
+
+        cp file1 file2 dir/
+               Copy multiple files to a directory.
+
+SEE ALSO
+        mv(1), install(1)
+`);
+
+    // mv(1) - move (rename) files
+    this.createFile('/usr/share/man/man1/mv.1', `MV(1)                        User Commands                       MV(1)
+
+NAME
+        mv - move (rename) files
+
+SYNOPSIS
+        mv [OPTION]... SOURCE DEST
+        mv [OPTION]... SOURCE... DIRECTORY
+
+DESCRIPTION
+        Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
+
+        Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+        -f, --force
+               do not prompt before overwriting
+
+        -i, --interactive
+               prompt before overwrite
+
+EXAMPLES
+        mv file1 file2
+                Rename file1 to file2.
+
+        mv file1 file2 dir/
+                Move multiple files to a directory.
+
+SEE ALSO
+        cp(1), rename(2)
+`);
+
+    // chmod(1) - change file mode bits
+    this.createFile('/usr/share/man/man1/chmod.1', `CHMOD(1)                     User Commands                    CHMOD(1)
+
+NAME
+        chmod - change file mode bits
+
+SYNOPSIS
+        chmod [OPTION]... MODE[,MODE]... FILE...
+        chmod [OPTION]... OCTAL-MODE FILE...
+
+DESCRIPTION
+        This manual page documents the GNU version of chmod. chmod changes the
+        file mode bits of each given file according to mode, which can be
+        either a symbolic representation of changes to make, or an octal
+        number representing the bit pattern for the new mode bits.
+
+EXAMPLES
+        chmod 755 file
+                Set file permissions to rwxr-xr-x.
+
+        chmod +x script.sh
+                Make script.sh executable.
+
+SEE ALSO
+        chown(1), chgrp(1), chmod(2)
+`);
+
+    // whoami(1) - print effective userid
+    this.createFile('/usr/share/man/man1/whoami.1', `WHOAMI(1)                    User Commands                   WHOAMI(1)
+
+NAME
+         whoami - print effective userid
+
+SYNOPSIS
+         whoami [OPTION]...
+
+DESCRIPTION
+         Print the user name associated with the current effective user ID.
+         Same as id -un.
+
+OPTIONS
+         --help display this help and exit
+
+         --version
+                output version information and exit
+
+EXAMPLES
+         whoami
+                Print the current user name.
+
+SEE ALSO
+         id(1), who(1)
+`);
+
+    // id(1) - print real and effective user and group IDs
+    this.createFile('/usr/share/man/man1/id.1', `ID(1)                        User Commands                       ID(1)
+
+NAME
+         id - print real and effective user and group IDs
+
+SYNOPSIS
+         id [OPTION]... [USER]
+
+DESCRIPTION
+         Print user and group information for the specified USER, or (when USER
+         omitted) for the current user.
+
+OPTIONS
+         -u, --user
+                print only the effective user ID
+
+         -g, --group
+                print only the effective group ID
+
+         -n, --name
+                print a name instead of a number, for -ugG
+
+EXAMPLES
+         id
+                Print information about the current user.
+
+SEE ALSO
+         whoami(1), groups(1)
+`);
+
+    // echo(1) - display a line of text
+    this.createFile('/usr/share/man/man1/echo.1', `ECHO(1)                      User Commands                     ECHO(1)
+
+NAME
+         echo - display a line of text
+
+SYNOPSIS
+         echo [SHORT-OPTION]... [STRING]...
+         echo LONG-OPTION
+
+DESCRIPTION
+         Echo the STRING(s) to standard output.
+
+         -n     do not output the trailing newline
+
+         -e     enable interpretation of backslash escapes
+
+         -E     disable interpretation of backslash escapes (default)
+
+EXAMPLES
+         echo hello world
+                Print "hello world" followed by a newline.
+
+         echo -n hello world
+                Print "hello world" without a trailing newline.
+
+SEE ALSO
+         printf(1)
+`);
+
+    // grep(1) - print lines that match patterns
+    this.createFile('/usr/share/man/man1/grep.1', `GREP(1)                      User Commands                     GREP(1)
+
+NAME
+         grep - print lines that match patterns
+
+SYNOPSIS
+         grep [OPTION...] PATTERNS [FILE...]
+
+DESCRIPTION
+         grep searches for PATTERNS in each FILE. PATTERNS is one or more
+         patterns separated by newline characters, and grep prints each line
+         that matches a pattern.
+
+OPTIONS
+         -i, --ignore-case
+                ignore case distinctions
+
+         -v, --invert-match
+                select non-matching lines
+
+         -n, --line-number
+                print line number with output lines
+
+EXAMPLES
+         grep "hello" file.txt
+                Print lines containing "hello".
+
+         grep -i "HELLO" file.txt
+                Case-insensitive search.
+
+SEE ALSO
+         sed(1), awk(1)
+`);
+
+    // find(1) - search for files in a directory hierarchy
+    this.createFile('/usr/share/man/man1/find.1', `FIND(1)                      User Commands                     FIND(1)
+
+NAME
+         find - search for files in a directory hierarchy
+
+SYNOPSIS
+         find [path...] [expression]
+
+DESCRIPTION
+         find searches the directory tree rooted at each given file name by
+         evaluating the given expression from left to right, according to the
+         rules of precedence, until the outcome is known.
+
+EXPRESSIONS
+         -name pattern
+                Base of file name matches shell pattern pattern.
+
+         -type c
+                File is of type c: f=regular file, d=directory
+
+EXAMPLES
+         find /home -name "*.txt"
+                Find all .txt files in /home.
+
+         find . -name "test*"
+                Find all files starting with "test" in current directory.
+
+SEE ALSO
+         locate(1), xargs(1)
+`);
+
+    // man(1) - an interface to the system reference manuals
+    this.createFile('/usr/share/man/man1/man.1', `MAN(1)                       User Commands                      MAN(1)
+
+NAME
+         man - an interface to the system reference manuals
+
+SYNOPSIS
+         man [man options] [[section] page ...] ...
+         man -k [apropos options] regexp ...
+         man -K [man options] [section] term ...
+         man -f [whatis options] page ...
+         man -l [man options] file ...
+         man -w|-W [man options] page ...
+
+DESCRIPTION
+         man is the system's manual pager. Each page argument given to man is
+         normally the name of a program, utility or function. The manual page
+         associated with each of these arguments is then found and displayed.
+
+EXAMPLES
+         man ls
+                Display the manual page for ls.
+
+         man -k printf
+                Search for manual pages containing "printf".
+
+SEE ALSO
+         apropos(1), whatis(1), less(1)
+`);
+
+    // help(1) - display help information
+    this.createFile('/usr/share/man/man1/help.1', `HELP(1)                      User Commands                     HELP(1)
+
+NAME
+         help - display help information
+
+SYNOPSIS
+         help [command]
+
+DESCRIPTION
+         Display helpful information about builtin commands. If COMMAND is
+         specified, display help for that command. Otherwise, display a list
+         of all available commands.
+
+EXAMPLES
+         help
+                Display a list of all available commands.
+
+         help ls
+                Display help for the ls command.
+
+SEE ALSO
+         man(1)
+`);
+
+    // save(1) - save filesystem state
+    this.createFile('/usr/share/man/man1/save.1', `SAVE(1)                      Linux Sim Commands               SAVE(1)
+
+NAME
+         save - save filesystem state to local storage
+
+SYNOPSIS
+         save
+
+DESCRIPTION
+         Save the current state of the filesystem to the browser's local storage.
+         This allows the filesystem state to persist between browser sessions.
+
+         The save operation includes all files, directories, permissions, and
+         current directory location.
+
+EXAMPLES
+         save
+                Save the current filesystem state.
+
+SEE ALSO
+         reset(1)
+`);
+
+    // reset(1) - reset filesystem to initial state
+    this.createFile('/usr/share/man/man1/reset.1', `RESET(1)                     Linux Sim Commands               RESET(1)
+
+NAME
+         reset - reset filesystem to initial state
+
+SYNOPSIS
+         reset
+
+DESCRIPTION
+         Clear the saved filesystem state from local storage and reset the
+         filesystem to its initial state. This will remove all user-created
+         files and directories.
+
+         Note: This command only clears the saved state. You must refresh the
+         page to see the reset filesystem.
+
+EXAMPLES
+         reset
+                Clear saved filesystem state.
+
+SEE ALSO
+         save(1)
+`);
+
+    // clear(1) - clear the terminal screen
+    this.createFile('/usr/share/man/man1/clear.1', `CLEAR(1)                     User Commands                    CLEAR(1)
+
+NAME
+         clear - clear the terminal screen
+
+SYNOPSIS
+         clear
+
+DESCRIPTION
+         Clear the terminal screen, removing all previous output and positioning
+         the cursor at the top of the screen.
+
+EXAMPLES
+         clear
+                Clear the terminal screen.
+
+SEE ALSO
+         reset(1)
+`);
+
+    // sudo(8) - execute a command as another user
+    this.createFile('/usr/share/man/man1/sudo.1', `SUDO(1)                       User Commands                      SUDO(1)
+
+NAME
+        sudo - execute a command as another user
+
+SYNOPSIS
+        sudo [OPTIONS] command
+
+DESCRIPTION
+        sudo allows a permitted user to execute a command as the superuser or
+        another user, as specified by the security policy.
+
+        By default, sudo requires that users authenticate themselves with a
+        password. Once a user has been authenticated, a time stamp is updated
+        and the user may then use sudo without a password for a short period
+        of time.
+
+OPTIONS
+        -u user     Run the command as the specified user instead of root.
+
+EXAMPLES
+        sudo cat /etc/sudoers
+                Read the sudoers file as root.
+
+        sudo -u user command
+                Run command as the specified user.
+
+SEE ALSO
+        su(1), sudoers(5)
+`);
+
+    // su(1) - change user ID or become superuser
+    this.createFile('/usr/share/man/man1/su.1', `SU(1)                         User Commands                        SU(1)
+
+NAME
+        su - change user ID or become superuser
+
+SYNOPSIS
+        su [OPTIONS] [username]
+
+DESCRIPTION
+        su is used to become another user during a login session. If no
+        username is specified, su defaults to becoming the superuser (root).
+
+        The user will be prompted for the password of the user they are trying
+        to become. If authentication is successful, the user's shell will be
+        started with the identity of the new user.
+
+        Note: Unlike sudo, su starts a new shell session as the target user.
+
+OPTIONS
+        -l, --login
+                Start the shell as a login shell with an environment similar
+                to a real login.
+
+        -c command
+                Pass command to the shell of the target user.
+
+EXAMPLES
+        su
+                Become root (superuser).
+
+        su username
+                Become the specified user.
+
+        su -l username
+                Become the specified user with a login shell.
+
+SEE ALSO
+        sudo(1), login(1)
+`);
+
+    // reboot(8) - reboot or enable/disable Ctrl-Alt-Del
+    this.createFile('/usr/share/man/man1/reboot.1', `REBOOT(1)                    User Commands                   REBOOT(1)
+
+NAME
+        reboot - reboot the system
+
+SYNOPSIS
+        reboot [OPTIONS]
+
+DESCRIPTION
+        reboot  reboots  the  system by sending a request to the system manager
+        (systemd by default), which will then reboot the system.
+
+        This  command  is  mostly  equivalent  to systemctl reboot, but  it also
+        accepts the same options as the systemctl command.
+
+        If the current user is not root,  the command will ask for authentica-
+        tion (via sudo) before proceeding.
+
+OPTIONS
+        --help
+                Print a short help text and exit.
+
+        -p, --poweroff
+                Power-off the machine (the default is to reboot).
+
+        -f, --force
+                Force immediate halt, power-off, or reboot.
+
+        -w, --wtmp-only
+                Only write wtmp shutdown entry, do not actually reboot/power-off/
+                halt.
+
+        --no-wtmp
+                Do not write wtmp shutdown entry.
+
+        -d, --no-wall
+                Don't send wall message before halt/power-off/reboot.
+
+EXAMPLES
+        reboot
+                Reboot the system.
+
+        reboot -p
+                Power off the system.
+
+        reboot --force
+                Force an immediate reboot.
+
+SEE ALSO
+        systemctl(1), shutdown(8), halt(8), poweroff(8)
 `);
   }
 
@@ -1013,9 +1250,9 @@ SEE ALSO
 
     // Check for missing man pages and create them individually
     const requiredManPages = [
-      'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat',
+      'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat', 'nano', 'sudo', 'su',
       'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'man', 'help', 'save', 'reset', 'clear'
+      'man', 'help', 'save', 'reset', 'clear', 'reboot'
     ];
 
     for (const cmd of requiredManPages) {
@@ -1031,35 +1268,35 @@ SEE ALSO
         this.createFile('/usr/share/man/man1/ls.1', `LS(1)                        User Commands                       LS(1)
 
 NAME
-       ls - list directory contents
+        ls - list directory contents
 
 SYNOPSIS
-       ls [OPTION]... [FILE]...
+        ls [OPTION]... [FILE]...
 
 DESCRIPTION
-       List information about the FILEs (the current directory by default).
-       Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
+        List information about the FILEs (the current directory by default).
+        Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
 
-       Mandatory arguments to long options are mandatory for short options too.
+        Mandatory arguments to long options are mandatory for short options too.
 
 OPTIONS
-       -a, --all
-              do not ignore entries starting with .
+        -a, --all
+               do not ignore entries starting with .
 
-       -l     use a long listing format
+        -l     use a long listing format
 
 EXAMPLES
-       ls
-              List the contents of the current directory.
+        ls
+               List the contents of the current directory.
 
-       ls -l
-              List the contents of the current directory in long format.
+        ls -l
+               List the contents of the current directory in long format.
 
-       ls -a
-              List all files, including hidden ones.
+        ls -a
+               List all files, including hidden ones.
 
 SEE ALSO
-       dir(1), vdir(1)
+        dir(1), vdir(1)
 `);
         break;
 
@@ -1067,31 +1304,31 @@ SEE ALSO
         this.createFile('/usr/share/man/man1/cd.1', `CD(1)                        User Commands                       CD(1)
 
 NAME
-       cd - change the working directory
+        cd - change the working directory
 
 SYNOPSIS
-       cd [DIRECTORY]
+        cd [DIRECTORY]
 
 DESCRIPTION
-       Change the current directory to DIRECTORY. The default DIRECTORY is the
-       value of the HOME shell variable.
+        Change the current directory to DIRECTORY. The default DIRECTORY is the
+        value of the HOME shell variable.
 
-       CD can also be entered as CHDIR. If DIRECTORY begins with a slash, it
-       is interpreted as an absolute path. Otherwise, it is interpreted as a
-       relative path to the current directory.
+        CD can also be entered as CHDIR. If DIRECTORY begins with a slash, it
+        is interpreted as an absolute path. Otherwise, it is interpreted as a
+        relative path to the current directory.
 
 EXAMPLES
-       cd
-              Change to the user's home directory.
+        cd
+               Change to the user's home directory.
 
-       cd /tmp
-              Change to the /tmp directory.
+        cd /tmp
+               Change to the /tmp directory.
 
-       cd ..
-              Change to the parent directory.
+        cd ..
+               Change to the parent directory.
 
 SEE ALSO
-       pwd(1), bash(1)
+        pwd(1), bash(1)
 `);
         break;
 
@@ -1099,27 +1336,27 @@ SEE ALSO
         this.createFile('/usr/share/man/man1/pwd.1', `PWD(1)                       User Commands                      PWD(1)
 
 NAME
-       pwd - print name of current/working directory
+        pwd - print name of current/working directory
 
 SYNOPSIS
-       pwd [OPTION]...
+        pwd [OPTION]...
 
 DESCRIPTION
-       Print the full filename of the current working directory.
+        Print the full filename of the current working directory.
 
 OPTIONS
-       -L, --logical
-              use PWD from environment, even if it contains symlinks
+        -L, --logical
+               use PWD from environment, even if it contains symlinks
 
-       -P, --physical
-              avoid all symlinks
+        -P, --physical
+               avoid all symlinks
 
 EXAMPLES
-       pwd
-              Print the current working directory.
+        pwd
+               Print the current working directory.
 
 SEE ALSO
-        getcwd(3), cd(1)
+         getcwd(3), cd(1)
 `);
         break;
 
@@ -1127,61 +1364,60 @@ SEE ALSO
         this.createFile('/usr/share/man/man1/mkdir.1', `MKDIR(1)                     User Commands                    MKDIR(1)
 
 NAME
-       mkdir - make directories
+        mkdir - make directories
 
 SYNOPSIS
-       mkdir [OPTION]... DIRECTORY...
+        mkdir [OPTION]... DIRECTORY...
 
 DESCRIPTION
-       Create the DIRECTORY(ies), if they do not already exist.
+        Create the DIRECTORY(ies), if they do not already exist.
 
 OPTIONS
-       -p, --parents
-              no error if existing, make parent directories as needed
+        -p, --parents
+               no error if existing, make parent directories as needed
 
 EXAMPLES
-       mkdir test
-              Create a directory called 'test'.
+        mkdir test
+               Create a directory called 'test'.
 
-       mkdir -p a/b/c
-              Create nested directories.
+        mkdir -p a/b/c
+               Create nested directories.
 
 SEE ALSO
-       rmdir(1), mkdir(2)
+        rmdir(1), mkdir(2)
 `);
         break;
 
       case 'rmdir':
         this.createFile('/usr/share/man/man1/rmdir.1', `RMDIR(1)                     User Commands                    RMDIR(1)
-
-NAME
-       rmdir - remove empty directories
+          NAME
+        rmdir - remove empty directories
 
 SYNOPSIS
-       rmdir [OPTION]... DIRECTORY...
+        rmdir [OPTION]... DIRECTORY...
 
 DESCRIPTION
-       Remove the DIRECTORY(ies), if they are empty.
+        Remove the DIRECTORY(ies), if they are empty.
 
-       Mandatory arguments to long options are mandatory for short options too.
+        Mandatory arguments to long options are mandatory for short options too.
 
 OPTIONS
-       --ignore-fail-on-non-empty
-              ignore each failure that is solely because a directory is non-empty
+        --ignore-fail-on-non-empty
+               ignore each failure that is solely because a directory is non-empty
 
-       -p, --parents
-              remove DIRECTORY and its ancestors; e.g., 'rmdir -p a/b/c' is
-              similar to 'rmdir a/b/c a/b a'
+        -p, --parents
+               remove DIRECTORY and its ancestors; e.g., 'rmdir -p a/b/c' is
+               similar to 'rmdir a/b/c a/b a'
 
 EXAMPLES
-       rmdir test
-              Remove the directory 'test' if it is empty.
+        rmdir test
+               Remove the directory 'test' if it is empty.
 
-       rmdir -p a/b/c
-              Remove directory 'a/b/c' and then 'a/b' and 'a' if they become empty.
+        rmdir -p a/b/c
+               Remove directory 'a/b/c' and then 'a/b' and 'a' if they become empty.
 
 SEE ALSO
-       rm(1), mkdir(1)
+        rm(1), mkdir(1)
 `);
         break;
 
@@ -1191,16 +1427,16 @@ SEE ALSO
         this.createFile(`/usr/share/man/man1/${command}.1`, `${command.toUpperCase()}(1)                   Linux Sim Commands                ${command.toUpperCase()}(1)
 
 NAME
-       ${command} - ${command} command
+        ${command} - ${command} command
 
 SYNOPSIS
-       ${command} [OPTIONS]...
+        ${command} [OPTIONS]...
 
 DESCRIPTION
-       This is the ${command} command for the Linux Sim game.
+        This is the ${command} command for the Linux Sim game.
 
 SEE ALSO
-       help(1), man(1)
+        help(1), man(1)
 `);
     }
   }
@@ -1215,9 +1451,7 @@ SEE ALSO
 
     // Check for missing binary files and create them
     const requiredBinaries = [
-      'ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm',
-      'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'man', 'help', 'save', 'reset', 'clear'
+      'ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'help', 'save', 'reset', 'clear', 'reboot'
     ];
 
     for (const bin of requiredBinaries) {
@@ -1354,6 +1588,10 @@ SEE ALSO
   changeDirectory(path: string): boolean {
     const target = this.resolvePath(path);
     if (target && target.type === 'directory') {
+      // Check execute permission on target directory
+      if (!this.isRoot() && !this.checkPermission(target, 'execute')) {
+        return false; // Permission denied
+      }
       this.currentDirectory = target;
       return true;
     }
@@ -1364,6 +1602,11 @@ SEE ALSO
     const dir = path ? this.resolvePath(path) : this.currentDirectory;
     if (!dir || dir.type !== 'directory' || !dir.children) return [];
 
+    // Check execute permission on directory (needed to list contents)
+    if (!this.isRoot() && !this.checkPermission(dir, 'execute')) {
+      return []; // Permission denied - return empty array
+    }
+
     const files = Array.from(dir.children.values());
     if (!showHidden) {
       return files.filter(file => !file.name.startsWith('.'));
@@ -1373,21 +1616,38 @@ SEE ALSO
 
   readFile(path: string): string | null {
     const file = this.resolvePath(path);
-    if (file && file.type === 'file') {
+    if (!file) return null;
+
+    if (file.type === 'directory') {
+      // Check if we can read directory (execute permission)
+      if (!this.isRoot() && !this.checkPermission(file, 'execute')) {
+        return null; // Permission denied
+      }
+      return '[directory contents]'; // Placeholder for directory reading
+    }
+
+    if (file.type === 'file') {
+      if (!this.isRoot() && !this.checkPermission(file, 'read')) {
+        return null; // Permission denied
+      }
       return file.content || '';
     }
+
     return null;
   }
 
   writeFile(path: string, content: string): boolean {
     const file = this.resolvePath(path);
-    if (file && file.type === 'file') {
-      file.content = content;
-      file.size = content.length;
-      file.modified = new Date();
-      return true;
+    if (!file || file.type !== 'file') return false;
+
+    if (!this.isRoot() && !this.checkPermission(file, 'write')) {
+      return false; // Permission denied
     }
-    return false;
+
+    file.content = content;
+    file.size = content.length;
+    file.modified = new Date();
+    return true;
   }
 
   createNewFile(path: string): boolean {
@@ -1402,6 +1662,11 @@ SEE ALSO
 
     if (!parent || parent.type !== 'directory') {
       return false;
+    }
+
+    // Check write permission on parent directory
+    if (!this.isRoot() && !this.checkPermission(parent, 'write')) {
+      return false; // Permission denied
     }
 
     const file: FileNode = {
@@ -1442,6 +1707,16 @@ SEE ALSO
     const node = this.resolvePath(path);
     if (!node || !node.parent || !node.parent.children) {
       return false;
+    }
+
+    // Check write permission on parent directory
+    if (!this.isRoot() && !this.checkPermission(node.parent, 'write')) {
+      return false; // Permission denied
+    }
+
+    // Check write permission on file itself (for sticky bit etc., but simplified)
+    if (node.type === 'file' && !this.isRoot() && !this.checkPermission(node, 'write')) {
+      return false; // Permission denied
     }
 
     // Don't allow removing directories with contents (simplified)
@@ -1536,8 +1811,30 @@ SEE ALSO
     return this.users.get(name);
   }
 
+  getUserById(uid: number): User | undefined {
+    for (const user of this.users.values()) {
+      if (user.uid === uid) return user;
+    }
+    return undefined;
+  }
+
   getGroupByName(name: string): Group | undefined {
     return this.groups.get(name);
+  }
+
+  getGroupById(gid: number): Group | undefined {
+    for (const group of this.groups.values()) {
+      if (group.gid === gid) return group;
+    }
+    return undefined;
+  }
+
+  getUsers(): Map<string, User> {
+    return this.users;
+  }
+
+  getGroups(): Map<string, Group> {
+    return this.groups;
   }
 
   getAbsolutePath(path?: string): string {
@@ -1545,6 +1842,71 @@ SEE ALSO
 
     const node = this.resolvePath(path);
     return node ? this.getPathString(node) : '';
+  }
+
+  // Permission checking methods
+  private parsePermissions(permString: string): { owner: number, group: number, other: number } {
+    // Parse permissions like 'rw-r--r--' or 'drwxr-xr-x'
+    const perms = permString.replace(/^[d-]/, ''); // Remove directory/file indicator
+    const owner = this.rwxToNumber(perms.substring(0, 3));
+    const group = this.rwxToNumber(perms.substring(3, 6));
+    const other = this.rwxToNumber(perms.substring(6, 9));
+    return { owner, group, other };
+  }
+
+  private rwxToNumber(rwx: string): number {
+    let num = 0;
+    if (rwx.includes('r')) num += 4;
+    if (rwx.includes('w')) num += 2;
+    if (rwx.includes('x')) num += 1;
+    return num;
+  }
+
+  private checkPermission(file: FileNode, operation: 'read' | 'write' | 'execute'): boolean {
+    const perms = this.parsePermissions(file.permissions);
+    const user = this.currentUser;
+
+    // Owner permissions
+    if (user.uid === file.uid) {
+      return this.hasPermission(perms.owner, operation);
+    }
+
+    // Group permissions
+    if (user.gid === file.gid) {
+      return this.hasPermission(perms.group, operation);
+    }
+
+    // Other permissions
+    return this.hasPermission(perms.other, operation);
+  }
+
+  private hasPermission(permValue: number, operation: 'read' | 'write' | 'execute'): boolean {
+    switch (operation) {
+      case 'read': return (permValue & 4) !== 0;
+      case 'write': return (permValue & 2) !== 0;
+      case 'execute': return (permValue & 1) !== 0;
+      default: return false;
+    }
+  }
+
+  private isRoot(): boolean {
+    return this.currentUser.uid === 0;
+  }
+
+  // Authentication methods
+  authenticateUser(username: string, password: string): User | null {
+    const user = this.users.get(username);
+    if (!user) return null;
+
+    // For simplicity, we'll do plain text comparison (in a real system this would be hashed)
+    if (user.password === password) {
+      return user;
+    }
+    return null;
+  }
+
+  switchUser(user: User): void {
+    this.currentUser = user;
   }
 
   // Persistence methods
@@ -1580,6 +1942,8 @@ SEE ALSO
       }
 
       this.deserialize(serialized);
+      // Ensure essential users and groups exist (in case they weren't saved)
+      this.ensureEssentialUsersAndGroups();
       return true;
     } catch (error) {
       console.warn('Failed to load filesystem from localStorage:', error);

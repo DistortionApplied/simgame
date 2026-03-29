@@ -1,24 +1,30 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import { useState, useEffect } from 'react';
 import Terminal from '../components/Terminal';
 import LoginScreen from '../components/LoginScreen';
 import SetupWizard from '../components/SetupWizard';
+import NanoEditor from '../components/NanoEditor';
 
 interface GameSetup {
   playerName: string;
   computerName: string;
   rootPassword: string;
+  userPassword: string;
   createdAt: string;
 }
 
-type GameState = 'login' | 'setup' | 'playing' | 'loading';
+type GameState = 'login' | 'setup' | 'playing' | 'loading' | 'editing';
+
+interface EditorState {
+  filePath: string;
+  content: string;
+}
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState>('loading');
   const [setupData, setSetupData] = useState<GameSetup | null>(null);
+  const [editorState, setEditorState] = useState<EditorState | null>(null);
 
   useEffect(() => {
     // Check for existing game setup
@@ -33,6 +39,7 @@ export default function Home() {
     }
     setGameState('login');
   }, []);
+
   const handleStartNewGame = () => {
     setGameState('setup');
   };
@@ -69,6 +76,36 @@ export default function Home() {
     // Stay on login screen since there's no game to load anymore
   };
 
+  const handleOpenEditor = (filePath: string, content: string) => {
+    setEditorState({ filePath, content });
+    setGameState('editing');
+  };
+
+  const handleSaveFile = async (content: string) => {
+    try {
+      // Import filesystem dynamically to avoid circular dependencies
+      const { FakeFileSystem } = await import('../lib/filesystem');
+      const fs = new FakeFileSystem(setupData);
+      const success = fs.writeFile(editorState!.filePath, content);
+      if (success) {
+        fs.saveToLocalStorage(); // Save the filesystem state
+        console.log(`File saved: ${editorState!.filePath}`);
+        return true;
+      } else {
+        console.error('Failed to save file');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving file:', error);
+      return false;
+    }
+  };
+
+  const handleExitEditor = () => {
+    setEditorState(null);
+    setGameState('playing');
+  };
+
   if (gameState === 'loading') {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -101,7 +138,18 @@ export default function Home() {
   }
 
   if (gameState === 'playing') {
-    return <Terminal setupData={setupData} />;
+    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} />;
+  }
+
+  if (gameState === 'editing' && editorState) {
+    return (
+      <NanoEditor
+        filePath={editorState.filePath}
+        initialContent={editorState.content}
+        onSave={handleSaveFile}
+        onExit={handleExitEditor}
+      />
+    );
   }
 
   return null;
