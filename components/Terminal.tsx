@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useState, useRef, useEffect } from 'react';
 import { FakeFileSystem } from '../lib/filesystem';
 
@@ -10,15 +9,27 @@ interface TerminalLine {
   commandPrompt?: string;
 }
 
-export default function Terminal() {
+interface GameSetup {
+  playerName: string;
+  computerName: string;
+  rootPassword: string;
+  createdAt: string;
+}
+
+interface TerminalProps {
+  setupData: GameSetup | null;
+}
+
+export default function Terminal({ setupData }: TerminalProps) {
   const [lines, setLines] = useState<TerminalLine[]>([
-    { type: 'output', content: 'Welcome to Linux Sim Game!' },
-    { type: 'output', content: 'Type "help" for available commands.' },
+    { type: 'output', content: `Welcome to Linux Sim Game, ${setupData?.playerName || 'User'}!` },
+    { type: 'output', content: `Connected to ${setupData?.computerName || 'linux-sim'}` },
+    { type: 'output', content: 'Type "help" for available commands or "cat README.txt" for more information.' },
   ]);
   const [currentInput, setCurrentInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [fs] = useState(() => new FakeFileSystem());
+  const [fs] = useState(() => new FakeFileSystem(setupData));
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -57,28 +68,56 @@ export default function Terminal() {
     let output: string = '';
     let error: string = '';
 
+    // Check if command binary exists (except for built-in commands)
+    const builtinCommands = ['cd', 'pwd', 'help', 'clear', 'debug'];
+    if (!builtinCommands.includes(cmd)) {
+      const binaryPath = `/bin/${cmd}.bin`;
+      if (!fs.readFile(binaryPath)) {
+        error = `${cmd}: command not found`;
+        // Add the command line and error to output
+        setLines(prev => [...prev, { type: 'input', content: command, commandPrompt: currentPrompt }]);
+        if (error) {
+          setLines(prev => [...prev, { type: 'error', content: error }]);
+        }
+        // Update prompt
+        setCurrentPrompt(`${setupData?.playerName?.toLowerCase() || 'user'}@${setupData?.computerName || 'linux-sim'}:${fs.getAbsolutePath()}$ `);
+        // Save filesystem state
+        fs.saveToLocalStorage();
+        return;
+      }
+    }
+
     switch (cmd) {
       case 'help':
-        output = `Available commands:
-  help           - Show this help
-  ls [opts] [dir]- List directory contents (-l long format, -a show hidden)
-  cd <dir>       - Change directory (~ for home)
-  pwd            - Print working directory
-  mkdir <dir>    - Create directory
-  touch <file>   - Create empty file
-  rm <file>      - Remove file
-  cat <file>     - Display file contents
-  cp <src> <dst> - Copy file
-  mv <src> <dst> - Move/rename file
-  chmod <mode> <file> - Change permissions (octal)
-  whoami         - Show current user
-  id             - Show user/group IDs
-  echo <text>    - Display text
-  grep <pat> <file> - Search for pattern in file
-  find <path> -name <pat> - Find files by name
-  save           - Manually save filesystem state
-  reset          - Reset filesystem to initial state
-  clear          - Clear terminal`;
+        const commands = [
+          ['help', 'Show this help'],
+          ['man <cmd>', 'Display manual page for command'],
+          ['ls [opts] [dir]', 'List directory contents (-l long format, -a show hidden)'],
+          ['cd <dir>', 'Change directory (~ for home)'],
+          ['pwd', 'Print working directory'],
+          ['mkdir <dir>', 'Create directory'],
+          ['rmdir <dir>', 'Remove empty directory'],
+          ['touch <file>', 'Create empty file'],
+          ['rm <file>', 'Remove file'],
+          ['cat <file>', 'Display file contents'],
+          ['cp <src> <dst>', 'Copy file'],
+          ['mv <src> <dst>', 'Move/rename file'],
+          ['chmod <mode> <file>', 'Change permissions (octal)'],
+          ['whoami', 'Show current user'],
+          ['id', 'Show user/group IDs'],
+          ['echo <text>', 'Display text'],
+          ['grep <pat> <file>', 'Search for pattern in file'],
+          ['find <path> -name <pat>', 'Find files by name'],
+          ['save', 'Manually save filesystem state'],
+          ['reset', 'Reset filesystem to initial state'],
+          ['debug', 'Show filesystem debug info'],
+          ['clear', 'Clear terminal']
+        ];
+
+        const maxCmdLength = Math.max(...commands.map(([cmd]) => cmd.length));
+        output = 'Available commands:\n' + commands.map(([cmd, desc]) =>
+          `  ${cmd.padEnd(maxCmdLength)} - ${desc}`
+        ).join('\n');
         break;
 
       case 'ls': {
@@ -112,12 +151,18 @@ export default function Terminal() {
         if (files.length === 0) {
           output = '';
         } else if (longFormat) {
+          // Calculate column widths for better alignment
+          const ownerNames = files.map(file => fs.getUserByName(file.uid.toString())?.name || file.uid.toString());
+          const groupNames = files.map(file => fs.getGroupByName(file.gid.toString())?.name || file.gid.toString());
+          const maxOwnerWidth = Math.max(...ownerNames.map(name => name.length), 8); // minimum 8 chars
+          const maxGroupWidth = Math.max(...groupNames.map(name => name.length), 8); // minimum 8 chars
+
           output = files.map(file => {
             const type = file.type === 'directory' ? 'd' : '-';
             const perms = file.permissions.substring(1);
             const links = '1'; // simplified
-            const owner = fs.getUserByName(file.uid.toString())?.name || file.uid.toString();
-            const group = fs.getGroupByName(file.gid.toString())?.name || file.gid.toString();
+            const owner = (fs.getUserByName(file.uid.toString())?.name || file.uid.toString()).padEnd(maxOwnerWidth);
+            const group = (fs.getGroupByName(file.gid.toString())?.name || file.gid.toString()).padEnd(maxGroupWidth);
             const size = file.size.toString().padStart(8);
             const date = file.modified.toLocaleDateString('en-US', {
               month: 'short',
@@ -125,10 +170,18 @@ export default function Terminal() {
               hour: '2-digit',
               minute: '2-digit'
             });
-            return `${type}${perms} ${links} ${owner} ${group} ${size} ${date} ${file.name}`;
+            const fileName = file.type === 'directory' ? `${file.name}/` : file.name;
+            return `${type}${perms} ${links} ${owner} ${group} ${size} ${date} ${fileName}`;
           }).join('\n');
         } else {
-          output = files.map(file => file.name).join('  ');
+          // Display files one per line with directory indicators for better readability
+          output = files.map(file => {
+            if (file.type === 'directory') {
+              return `${file.name}/`;
+            } else {
+              return file.name;
+            }
+          }).join('\n');
         }
         break;
       }
@@ -157,7 +210,7 @@ export default function Terminal() {
 
       case 'mkdir': {
         if (args.length === 0) {
-          error = 'mkdir: missing operand';
+          error = 'mkdir: missing operand\nUsage: mkdir <directory>';
         } else {
           const failedDirs: string[] = [];
           args.forEach(dir => {
@@ -167,6 +220,23 @@ export default function Terminal() {
           });
           if (failedDirs.length > 0) {
             error = `mkdir: cannot create directory '${failedDirs[0]}': File exists`;
+          }
+        }
+        break;
+      }
+
+      case 'rmdir': {
+        if (args.length === 0) {
+          error = 'rmdir: missing operand\nUsage: rmdir <directory>';
+        } else {
+          const failedDirs: string[] = [];
+          args.forEach(dir => {
+            if (!fs.removeDirectory(dir)) {
+              failedDirs.push(dir);
+            }
+          });
+          if (failedDirs.length > 0) {
+            error = `rmdir: failed to remove '${failedDirs[0]}': Directory not empty or does not exist`;
           }
         }
         break;
@@ -330,10 +400,39 @@ export default function Terminal() {
         }
         break;
 
+      case 'debug': {
+        const manDir = fs.getNode('/usr/share/man/man1');
+        if (manDir) {
+          const files = fs.listDirectory('/usr/share/man/man1', true);
+          const fileList = files.map(f => f.name).join('\n');
+          output = `Man pages directory: ${files.length} files found\n${fileList}`;
+        } else {
+          output = 'Error: Man pages directory not found';
+        }
+        break;
+      }
+
       case 'reset':
         fs.clearLocalStorage();
         output = 'Filesystem reset. Refresh the page to start fresh.';
         break;
+
+      case 'man': {
+        if (args.length === 0) {
+          error = 'What manual page do you want?\nUsage: man <command>';
+        } else {
+          const command = args[0];
+          const manPagePath = `/usr/share/man/man1/${command}.1`;
+          const content = fs.readFile(manPagePath);
+
+          if (content !== null) {
+            output = content;
+          } else {
+            error = `man: No manual entry for ${command}\nTry 'help' to see available commands.`;
+          }
+        }
+        break;
+      }
 
       case 'clear':
         setLines([]);
@@ -357,7 +456,7 @@ export default function Terminal() {
     }
 
     // Update prompt after directory changes
-    setCurrentPrompt(`user@linux-sim:${fs.getAbsolutePath()}$ `);
+    setCurrentPrompt(`${setupData?.playerName?.toLowerCase() || 'user'}@${setupData?.computerName || 'linux-sim'}:${fs.getAbsolutePath()}$ `);
 
     // Save filesystem state after each command
     fs.saveToLocalStorage();
@@ -367,6 +466,9 @@ export default function Terminal() {
     if (e.key === 'Enter') {
       executeCommand(currentInput);
       setCurrentInput('');
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      handleTabCompletion();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length > 0) {
@@ -387,6 +489,105 @@ export default function Terminal() {
         }
       }
     }
+  };
+
+  const handleTabCompletion = () => {
+    const input = currentInput;
+    const parts = input.split(' ');
+    const currentPart = parts[parts.length - 1];
+    const prevParts = parts.slice(0, -1);
+
+    // If we're at the beginning (command completion)
+    if (parts.length === 1 && !input.includes(' ')) {
+      const completions = getCommandCompletions(currentPart);
+      if (completions.length === 1) {
+        setCurrentInput(completions[0]);
+      } else if (completions.length > 1) {
+        // Show possible completions
+        const commonPrefix = getCommonPrefix(completions);
+        if (commonPrefix.length > currentPart.length) {
+          setCurrentInput(commonPrefix);
+        } else {
+          // Show all completions
+          setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
+        }
+      }
+    } else {
+      // Path completion
+      const completions = getPathCompletions(currentPart);
+      if (completions.length === 1) {
+        const completedPath = completions[0];
+        const newInput = [...prevParts, completedPath].join(' ');
+        setCurrentInput(newInput);
+      } else if (completions.length > 1) {
+        const commonPrefix = getCommonPrefix(completions);
+        if (commonPrefix.length > currentPart.length) {
+          const newInput = [...prevParts, commonPrefix].join(' ');
+          setCurrentInput(newInput);
+        } else {
+          // Show all completions
+          setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
+        }
+      }
+    }
+  };
+
+  const getCommandCompletions = (prefix: string): string[] => {
+    const allCommands = [
+      'help', 'man', 'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm',
+      'cat', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
+      'save', 'reset', 'debug', 'clear'
+    ];
+
+    return allCommands.filter(cmd => cmd.startsWith(prefix));
+  };
+
+  const getPathCompletions = (prefix: string): string[] => {
+    // Handle absolute vs relative paths
+    let basePath = '';
+    let searchPrefix = prefix;
+
+    if (prefix.includes('/')) {
+      const lastSlashIndex = prefix.lastIndexOf('/');
+      basePath = prefix.substring(0, lastSlashIndex);
+      searchPrefix = prefix.substring(lastSlashIndex + 1);
+    }
+
+    // Get the directory to search in
+    const searchDir = basePath ? basePath : '.';
+    const files = fs.listDirectory(searchDir, true);
+
+    // Filter by prefix
+    const matches = files
+      .map(file => file.name)
+      .filter(name => name.startsWith(searchPrefix));
+
+    // Add path prefix back
+    const fullBasePath = basePath ? (basePath === '/' ? '/' : basePath + '/') : '';
+    return matches.map(name => {
+      const file = files.find(f => f.name === name);
+      const isDir = file?.type === 'directory';
+      if (isDir) {
+        return fullBasePath + name + '/';
+      } else {
+        // For files, name already includes extension, so just return as-is
+        return fullBasePath + name;
+      }
+    });
+  };
+
+  const getCommonPrefix = (strings: string[]): string => {
+    if (strings.length === 0) return '';
+    if (strings.length === 1) return strings[0];
+
+    let prefix = strings[0];
+    for (let i = 1; i < strings.length; i++) {
+      while (strings[i].indexOf(prefix) !== 0) {
+        prefix = prefix.substring(0, prefix.length - 1);
+        if (prefix === '') return '';
+      }
+    }
+    return prefix;
   };
 
   useEffect(() => {

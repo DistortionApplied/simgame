@@ -10,6 +10,7 @@ export interface FileNode {
   children?: Map<string, FileNode>; // only for directories
   content?: string; // only for files
   link?: string; // for symbolic links (future feature)
+  extension?: string; // file extension (e.g., 'txt', 'bin', 'exe')
 }
 
 export interface User {
@@ -48,6 +49,13 @@ interface SerializedFileSystem {
   version: string; // for future compatibility
 }
 
+interface GameSetup {
+  playerName: string;
+  computerName: string;
+  rootPassword: string;
+  createdAt: string;
+}
+
 export class FakeFileSystem {
   private root!: FileNode; // Using definite assignment assertion
   private currentDirectory!: FileNode;
@@ -55,27 +63,56 @@ export class FakeFileSystem {
   private users: Map<string, User>;
   private groups: Map<string, Group>;
   private readonly STORAGE_KEY = 'linux-sim-filesystem';
+  private setupData: GameSetup | null = null;
 
-  constructor() {
+  constructor(setupData?: GameSetup | null) {
+    this.setupData = setupData || null;
     this.users = new Map();
     this.groups = new Map();
 
     // Try to load from localStorage first
     if (!this.loadFromLocalStorage()) {
       // If no saved state or loading failed, create fresh filesystem
-      this.createUsersAndGroups();
-      this.currentUser = this.users.get('user')!;
+
+      // Create a temporary currentUser for filesystem creation
+      const tempUserName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+      this.currentUser = {
+        uid: 1000,
+        name: tempUserName,
+        gid: 1000,
+        home: `/home/${tempUserName}`,
+        shell: '/bin/bash'
+      };
+
       this.root = this.createInitialFileSystem();
+      this.createUsersAndGroups();
+      this.currentUser = this.users.get(tempUserName)!;
       this.currentDirectory = this.root;
     }
 
     // Ensure properties are initialized (TypeScript requirement)
     if (!this.root) {
-      this.createUsersAndGroups();
-      this.currentUser = this.users.get('user')!;
+      // Create a temporary currentUser for filesystem creation
+      const tempUserName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+      this.currentUser = {
+        uid: 1000,
+        name: tempUserName,
+        gid: 1000,
+        home: `/home/${tempUserName}`,
+        shell: '/bin/bash'
+      };
+
       this.root = this.createInitialFileSystem();
+      this.createUsersAndGroups();
+      this.currentUser = this.users.get(tempUserName)!;
       this.currentDirectory = this.root;
     }
+
+    // Ensure man pages exist (in case they weren't created during load)
+    this.ensureManPagesExist();
+
+    // Ensure binary files exist
+    this.ensureBinariesExist();
   }
 
   private createInitialFileSystem(): FileNode {
@@ -132,12 +169,22 @@ export class FakeFileSystem {
     this.createDirectory('spool', vari);
     this.createDirectory('tmp', vari);
 
-    // Create user home directory
+   // Create user home directory
     const home = root.children!.get('home')!;
-    const userHome = this.createDirectory('user', home);
+    const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+    const userHome = this.createDirectory(userName, home);
+
+    // Create man pages directory structure
+    const usrDir = root.children!.get('usr')!;
+    const share = this.createDirectory('share', usrDir);
+    const man = this.createDirectory('man', share);
+    this.createDirectory('man1', man);
 
     // Populate directories with realistic files
     this.populateSystemFiles();
+
+    // Create manual pages
+    this.createManPages();
 
     return root;
   }
@@ -152,12 +199,15 @@ export class FakeFileSystem {
       shell: '/bin/bash'
     });
 
-    // Create regular user
-    this.users.set('user', {
+    // Create regular user based on setup data
+    const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+    const userHome = `/home/${userName}`;
+
+    this.users.set(userName, {
       uid: 1000,
-      name: 'user',
+      name: userName,
       gid: 1000,
-      home: '/home/user',
+      home: userHome,
       shell: '/bin/bash'
     });
 
@@ -168,18 +218,20 @@ export class FakeFileSystem {
       members: ['root']
     });
 
-    this.groups.set('user', {
+    this.groups.set(userName, {
       gid: 1000,
-      name: 'user',
-      members: ['user']
+      name: userName,
+      members: [userName]
     });
   }
 
   private populateSystemFiles(): void {
-    // /etc files
+    const userName = this.setupData?.playerName?.toLowerCase().replace(/\s+/g, '') || 'user';
+
+    // /etc files (system config files, no extensions)
     this.createFile('/etc/passwd',
       'root:x:0:0:root:/root:/bin/bash\n' +
-      'user:x:1000:1000:user:/home/user:/bin/bash\n' +
+      `${userName}:x:1000:1000:${userName}:/home/${userName}:/bin/bash\n` +
       'daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n' +
       'bin:x:2:2:bin:/bin:/usr/sbin/nologin\n'
     );
@@ -201,7 +253,7 @@ export class FakeFileSystem {
     );
 
     // /home/user files
-    this.createFile('/home/user/.bashrc',
+    this.createFile(`/home/${userName}/.bashrc`,
       '# ~/.bashrc: executed by bash(1) for non-login shells.\n' +
       'export PS1="\\u@\\h:\\w\\$ "\n' +
       'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n' +
@@ -210,7 +262,7 @@ export class FakeFileSystem {
       'alias l="ls -CF"\n'
     );
 
-    this.createFile('/home/user/.profile',
+    this.createFile(`/home/${userName}/.profile`,
       '# ~/.profile: executed by the command interpreter for login shells.\n' +
       'if [ -n "$BASH_VERSION" ]; then\n' +
       '    if [ -f "$HOME/.bashrc" ]; then\n' +
@@ -219,64 +271,960 @@ export class FakeFileSystem {
       'fi\n'
     );
 
-    this.createFile('/home/user/README.txt',
-      '🎮 Welcome to Linux Sim Game! 🎮\n\n' +
-      'You are now in a fully simulated Linux environment.\n' +
+    // /home/user files
+    const computerName = this.setupData?.computerName || 'linux-sim';
+
+    this.createFile(`/home/${userName}/README.txt`,
+      `Welcome to Linux Sim Game, ${this.setupData?.playerName || 'Player'}!\n\n` +
+      `You are now connected to ${computerName} in a fully simulated Linux environment.\n` +
       'Explore, create, and manage files just like on a real system!\n\n' +
-      '🌟 Key Features:\n' +
-      '  • Realistic directory structure (/usr, /var, /etc, etc.)\n' +
+      'Key Features:\n' +
+      '  • Realistic directory structure (/usr, /var, /etc, /home, etc.)\n' +
       '  • Proper file permissions and user management\n' +
       '  • Absolute and relative path navigation\n' +
-      '  • Advanced command options and flags\n\n' +
-      '📚 Available Commands:\n' +
-      '  Navigation:\n' +
-      '    cd <dir>    - Change directory (~ for home)\n' +
-      '    pwd         - Print working directory\n' +
-      '    ls [opts]   - List contents (-l long, -a hidden)\n\n' +
-      '  File Operations:\n' +
-      '    cat <file>  - Display file contents\n' +
-      '    touch <file>- Create empty file\n' +
-      '    cp <src> <dst> - Copy file\n' +
-      '    mv <src> <dst> - Move/rename file\n' +
-      '    rm <file>   - Remove file\n' +
-      '    mkdir <dir> - Create directory\n\n' +
-      '  System Info:\n' +
-      '    whoami      - Show current user\n' +
-      '    id          - Show user/group IDs\n' +
-      '    chmod <mode> <file> - Change permissions\n\n' +
-      '  Text Processing:\n' +
-      '    grep <pat> <file> - Search for pattern\n' +
-      '    find <path> -name <pat> - Locate files\n\n' +
-      '  Utilities:\n' +
-      '    help        - Show all commands\n' +
-      '    echo <text> - Display text\n' +
-      '    save        - Save current filesystem state\n' +
-      '    reset       - Reset filesystem to initial state\n' +
-      '    clear       - Clear terminal\n\n' +
-      '💾 Persistence:\n' +
-      '  Your filesystem state is automatically saved!\n' +
+      '  • Advanced command options and flags\n' +
+      '  • Manual pages for all commands (man <command>)\n' +
+      '  • Persistent filesystem state\n' +
+      '  • Tab completion for commands and file paths\n' +
+      '  • File extensions (.bin, .txt, .log, etc.)\n' +
+      '  • Realistic consequences - delete /bin/ls.bin and ls stops working!\n\n' +
+      'Available Commands:\n' +
+      '  help                     - Show this help\n' +
+      '  man <cmd>                - Display manual page for command\n' +
+      '  ls [opts] [dir]          - List directory contents (-l long format, -a show hidden)\n' +
+      '  cd <dir>                 - Change directory (~ for home)\n' +
+      '  pwd                      - Print working directory\n' +
+      '  mkdir <dir>              - Create directory\n' +
+      '  rmdir <dir>              - Remove empty directory\n' +
+      '  touch <file>             - Create empty file\n' +
+      '  rm <file>                - Remove file\n' +
+      '  cat <file>               - Display file contents\n' +
+      '  cp <src> <dst>           - Copy file\n' +
+      '  mv <src> <dst>           - Move/rename file\n' +
+      '  chmod <mode> <file>      - Change permissions (octal)\n' +
+      '  whoami                   - Show current user\n' +
+      '  id                       - Show user/group IDs\n' +
+      '  echo <text>              - Display text\n' +
+      '  grep <pat> <file>        - Search for pattern in file\n' +
+      '  find <path> -name <pat>  - Find files by name\n' +
+      '  save                     - Manually save filesystem state\n' +
+      '  reset                    - Reset filesystem to initial state\n' +
+      '  debug                    - Show filesystem debug info\n' +
+      '  clear                    - Clear terminal\n\n' +
+      'Persistence:\n' +
+      '  Your filesystem state is automatically saved after each command.\n' +
       '  Use "save" to manually save, "reset" to start fresh.\n\n' +
-      '🚀 Getting Started:\n' +
-      '  Try: ls -la\n' +
-      '       cd /etc\n' +
-      '       cat passwd\n' +
-      '       cd ~\n' +
-      '       help\n\n' +
-      'Enjoy exploring your Linux simulation! 🐧\n'
+      'Learning Linux:\n' +
+      '  Use "man <command>" to read detailed documentation for any command.\n' +
+      '  Example: man ls, man cd, man chmod\n\n' +
+      '⚠️  Realistic Consequences:\n' +
+      '  This is a REALISTIC Linux simulation! If you delete system files,\n' +
+      '  things will break. For example:\n' +
+      '    rm /bin/ls.bin    → ls command stops working\n' +
+      '    rm /bin/cat.bin   → cat command stops working\n' +
+      '    rm README.txt     → Your guide is gone forever\n' +
+      '  Use "reset" to start fresh if you break things too badly!\n\n' +
+      'Your Setup:\n' +
+      `  Computer: ${computerName}\n` +
+      `  User: ${userName}\n\n` +
+      'Getting Started:\n' +
+      '  Try these commands:\n' +
+      '    man ls\n' +
+      '    ls -la\n' +
+      '    cd /etc\n' +
+      '    cat passwd\n' +
+      '    cd ~\n' +
+      '    help\n\n' +
+      '  Pro Tips:\n' +
+      '    • Press Tab for auto-completion of commands and paths\n' +
+      '    • Use arrow keys to navigate command history\n' +
+      '    • Be careful deleting system files - things will break!\n\n' +
+      'Enjoy exploring your Linux simulation!\n'
     );
 
     // /var/log files
-    this.createFile('/var/log/syslog',
+    this.createFile('/var/log/syslog.log',
       '[INFO] System started at ' + new Date().toISOString() + '\n' +
       '[INFO] File system initialized\n' +
       '[INFO] User session started\n'
     );
 
     // Create some basic binaries (just placeholder files)
-    const binaries = ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'grep', 'find'];
+    const binaries = ['ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'help', 'save', 'reset', 'clear'];
     binaries.forEach(bin => {
-      this.createFile(`/bin/${bin}`, '#!/bin/bash\n# ${bin} command\n');
+      this.createFile(`/bin/${bin}.bin`, '#!/bin/bash\n# ${bin} command\n');
     });
+  }
+
+  private createManPages(): void {
+    // ls(1) - list directory contents
+    this.createFile('/usr/share/man/man1/ls.1', `LS(1)                        User Commands                       LS(1)
+
+NAME
+       ls - list directory contents
+
+SYNOPSIS
+       ls [OPTION]... [FILE]...
+
+DESCRIPTION
+       List information about the FILEs (the current directory by default).
+       Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
+
+       Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+       -a, --all
+              do not ignore entries starting with .
+
+       -l     use a long listing format
+
+EXAMPLES
+       ls
+              List the contents of the current directory.
+
+       ls -l
+              List the contents of the current directory in long format.
+
+       ls -a
+              List all files, including hidden ones.
+
+SEE ALSO
+       dir(1), vdir(1)
+`);
+
+    // cd(1) - change directory
+    this.createFile('/usr/share/man/man1/cd.1', `CD(1)                        User Commands                       CD(1)
+
+NAME
+       cd - change the working directory
+
+SYNOPSIS
+       cd [DIRECTORY]
+
+DESCRIPTION
+       Change the current directory to DIRECTORY. The default DIRECTORY is the
+       value of the HOME shell variable.
+
+       CD can also be entered as CHDIR. If DIRECTORY begins with a slash, it
+       is interpreted as an absolute path. Otherwise, it is interpreted as a
+       relative path to the current directory.
+
+EXAMPLES
+       cd
+              Change to the user's home directory.
+
+       cd /tmp
+              Change to the /tmp directory.
+
+       cd ..
+              Change to the parent directory.
+
+SEE ALSO
+       pwd(1), bash(1)
+`);
+
+    // pwd(1) - print working directory
+    this.createFile('/usr/share/man/man1/pwd.1', `PWD(1)                       User Commands                      PWD(1)
+
+NAME
+       pwd - print name of current/working directory
+
+SYNOPSIS
+       pwd [OPTION]...
+
+DESCRIPTION
+       Print the full filename of the current working directory.
+
+OPTIONS
+       -L, --logical
+              use PWD from environment, even if it contains symlinks
+
+       -P, --physical
+              avoid all symlinks
+
+EXAMPLES
+       pwd
+              Print the current working directory.
+
+SEE ALSO
+        getcwd(3), cd(1)
+`);
+
+    // mkdir(1) - make directories
+    this.createFile('/usr/share/man/man1/mkdir.1', `MKDIR(1)                     User Commands                    MKDIR(1)
+
+NAME
+       mkdir - make directories
+
+SYNOPSIS
+       mkdir [OPTION]... DIRECTORY...
+
+DESCRIPTION
+       Create the DIRECTORY(ies), if they do not already exist.
+
+OPTIONS
+       -p, --parents
+              no error if existing, make parent directories as needed
+
+EXAMPLES
+       mkdir test
+              Create a directory called 'test'.
+
+       mkdir -p a/b/c
+              Create nested directories.
+
+SEE ALSO
+       rmdir(1), mkdir(2)
+`);
+
+    // rm(1) - remove files or directories
+    this.createFile('/usr/share/man/man1/rm.1', `RM(1)                        User Commands                       RM(1)
+
+NAME
+       rm - remove files or directories
+
+SYNOPSIS
+       rm [OPTION]... FILE...
+
+DESCRIPTION
+       This manual page documents the GNU version of rm. rm removes each
+       specified file. By default, it does not remove directories.
+
+       If the -I or --interactive=once option is given, and there are more
+       than three files or the -r, -R, or --recursive are given, then rm
+       prompts the user for whether to proceed.
+
+OPTIONS
+       -f, --force
+              ignore nonexistent files and arguments, never prompt
+
+       -i     prompt before every removal
+
+       -I     prompt once before removing more than three files
+
+       -r, -R, --recursive
+              remove directories and their contents recursively
+
+EXAMPLES
+       rm file.txt
+              Remove a file.
+
+       rm -r directory
+              Remove a directory and all its contents.
+
+SEE ALSO
+       unlink(2), rmdir(2), chattr(1)
+`);
+
+    // touch(1) - change file timestamps
+    this.createFile('/usr/share/man/man1/touch.1', `TOUCH(1)                     User Commands                    TOUCH(1)
+
+NAME
+       touch - change file timestamps
+
+SYNOPSIS
+       touch [OPTION]... FILE...
+
+DESCRIPTION
+       Update the access and modification times of each FILE to the current
+       time. A FILE argument that does not exist is created empty, unless -c
+       or -h is supplied.
+
+       A FILE argument string of - is handled specially and causes touch to
+       change the times of the file associated with standard output.
+
+OPTIONS
+       -c, --no-create
+              do not create any files
+
+EXAMPLES
+       touch file.txt
+              Create file.txt if it doesn't exist, or update its timestamp.
+
+SEE ALSO
+        stat(2), utime(2)
+`);
+
+    // cat(1) - concatenate files and print on the standard output
+    this.createFile('/usr/share/man/man1/cat.1', `CAT(1)                       User Commands                      CAT(1)
+
+NAME
+       cat - concatenate files and print on the standard output
+
+SYNOPSIS
+       cat [OPTION]... [FILE]...
+
+DESCRIPTION
+       Concatenate FILE(s) to standard output.
+
+       With no FILE, or when FILE is -, read standard input.
+
+OPTIONS
+       -n, --number
+              number all output lines
+
+       -b, --number-nonblank
+              number nonempty output lines
+
+       -s, --squeeze-blank
+              suppress repeated empty output lines
+
+EXAMPLES
+       cat file.txt
+              Display the contents of file.txt.
+
+       cat file1.txt file2.txt
+              Display the contents of multiple files.
+
+SEE ALSO
+       tac(1), more(1), less(1)
+`);
+
+    // cp(1) - copy files and directories
+    this.createFile('/usr/share/man/man1/cp.1', `CP(1)                        User Commands                       CP(1)
+
+NAME
+       cp - copy files and directories
+
+SYNOPSIS
+       cp [OPTION]... SOURCE DEST
+       cp [OPTION]... SOURCE... DIRECTORY
+
+DESCRIPTION
+       Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
+
+OPTIONS
+       -f, --force
+              if an existing destination file cannot be opened, remove it
+
+       -i, --interactive
+              prompt before overwrite
+
+       -r, -R, --recursive
+              copy directories recursively
+
+EXAMPLES
+       cp file1 file2
+              Copy file1 to file2.
+
+       cp file1 file2 dir/
+              Copy multiple files to a directory.
+
+SEE ALSO
+       mv(1), install(1)
+`);
+
+    // mv(1) - move (rename) files
+    this.createFile('/usr/share/man/man1/mv.1', `MV(1)                        User Commands                       MV(1)
+
+NAME
+       mv - move (rename) files
+
+SYNOPSIS
+       mv [OPTION]... SOURCE DEST
+       mv [OPTION]... SOURCE... DIRECTORY
+
+DESCRIPTION
+       Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
+
+       Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+       -f, --force
+              do not prompt before overwriting
+
+       -i, --interactive
+              prompt before overwrite
+
+EXAMPLES
+       mv file1 file2
+              Rename file1 to file2.
+
+       mv file1 file2 dir/
+              Move multiple files to a directory.
+
+SEE ALSO
+       cp(1), rename(2)
+`);
+
+    // chmod(1) - change file mode bits
+    this.createFile('/usr/share/man/man1/chmod.1', `CHMOD(1)                     User Commands                    CHMOD(1)
+
+NAME
+       chmod - change file mode bits
+
+SYNOPSIS
+       chmod [OPTION]... MODE[,MODE]... FILE...
+       chmod [OPTION]... OCTAL-MODE FILE...
+
+DESCRIPTION
+       This manual page documents the GNU version of chmod. chmod changes the
+       file mode bits of each given file according to mode, which can be
+       either a symbolic representation of changes to make, or an octal
+       number representing the bit pattern for the new mode bits.
+
+EXAMPLES
+       chmod 755 file
+              Set file permissions to rwxr-xr-x.
+
+       chmod +x script.sh
+              Make script.sh executable.
+
+SEE ALSO
+       chown(1), chgrp(1), chmod(2)
+`);
+
+    // whoami(1) - print effective userid
+    this.createFile('/usr/share/man/man1/whoami.1', `WHOAMI(1)                    User Commands                   WHOAMI(1)
+
+NAME
+        whoami - print effective userid
+
+SYNOPSIS
+        whoami [OPTION]...
+
+DESCRIPTION
+        Print the user name associated with the current effective user ID.
+        Same as id -un.
+
+OPTIONS
+        --help display this help and exit
+
+        --version
+               output version information and exit
+
+EXAMPLES
+        whoami
+               Print the current user name.
+
+SEE ALSO
+        id(1), who(1)
+`);
+
+    // id(1) - print real and effective user and group IDs
+    this.createFile('/usr/share/man/man1/id.1', `ID(1)                        User Commands                       ID(1)
+
+NAME
+        id - print real and effective user and group IDs
+
+SYNOPSIS
+        id [OPTION]... [USER]
+
+DESCRIPTION
+        Print user and group information for the specified USER, or (when USER
+        omitted) for the current user.
+
+OPTIONS
+        -u, --user
+               print only the effective user ID
+
+        -g, --group
+               print only the effective group ID
+
+        -n, --name
+               print a name instead of a number, for -ugG
+
+EXAMPLES
+        id
+               Print information about the current user.
+
+SEE ALSO
+        whoami(1), groups(1)
+`);
+
+    // echo(1) - display a line of text
+    this.createFile('/usr/share/man/man1/echo.1', `ECHO(1)                      User Commands                     ECHO(1)
+
+NAME
+        echo - display a line of text
+
+SYNOPSIS
+        echo [SHORT-OPTION]... [STRING]...
+        echo LONG-OPTION
+
+DESCRIPTION
+        Echo the STRING(s) to standard output.
+
+        -n     do not output the trailing newline
+
+        -e     enable interpretation of backslash escapes
+
+        -E     disable interpretation of backslash escapes (default)
+
+EXAMPLES
+        echo hello world
+               Print "hello world" followed by a newline.
+
+        echo -n hello world
+               Print "hello world" without a trailing newline.
+
+SEE ALSO
+        printf(1)
+`);
+
+    // grep(1) - print lines that match patterns
+    this.createFile('/usr/share/man/man1/grep.1', `GREP(1)                      User Commands                     GREP(1)
+
+NAME
+        grep - print lines that match patterns
+
+SYNOPSIS
+        grep [OPTION...] PATTERNS [FILE...]
+
+DESCRIPTION
+        grep searches for PATTERNS in each FILE. PATTERNS is one or more
+        patterns separated by newline characters, and grep prints each line
+        that matches a pattern.
+
+OPTIONS
+        -i, --ignore-case
+               ignore case distinctions
+
+        -v, --invert-match
+               select non-matching lines
+
+        -n, --line-number
+               print line number with output lines
+
+EXAMPLES
+        grep "hello" file.txt
+               Print lines containing "hello".
+
+        grep -i "HELLO" file.txt
+               Case-insensitive search.
+
+SEE ALSO
+        sed(1), awk(1)
+`);
+
+    // find(1) - search for files in a directory hierarchy
+    this.createFile('/usr/share/man/man1/find.1', `FIND(1)                      User Commands                     FIND(1)
+
+NAME
+        find - search for files in a directory hierarchy
+
+SYNOPSIS
+        find [path...] [expression]
+
+DESCRIPTION
+        find searches the directory tree rooted at each given file name by
+        evaluating the given expression from left to right, according to the
+        rules of precedence, until the outcome is known.
+
+EXPRESSIONS
+        -name pattern
+               Base of file name matches shell pattern pattern.
+
+        -type c
+               File is of type c: f=regular file, d=directory
+
+EXAMPLES
+        find /home -name "*.txt"
+               Find all .txt files in /home.
+
+        find . -name "test*"
+               Find all files starting with "test" in current directory.
+
+SEE ALSO
+        locate(1), xargs(1)
+`);
+
+    // man(1) - an interface to the system reference manuals
+    this.createFile('/usr/share/man/man1/man.1', `MAN(1)                       User Commands                      MAN(1)
+
+NAME
+        man - an interface to the system reference manuals
+
+SYNOPSIS
+        man [man options] [[section] page ...] ...
+        man -k [apropos options] regexp ...
+        man -K [man options] [section] term ...
+        man -f [whatis options] page ...
+        man -l [man options] file ...
+        man -w|-W [man options] page ...
+
+DESCRIPTION
+        man is the system's manual pager. Each page argument given to man is
+        normally the name of a program, utility or function. The manual page
+        associated with each of these arguments is then found and displayed.
+
+EXAMPLES
+        man ls
+               Display the manual page for ls.
+
+        man -k printf
+               Search for manual pages containing "printf".
+
+SEE ALSO
+        apropos(1), whatis(1), less(1)
+`);
+
+    // help(1) - display help information
+    this.createFile('/usr/share/man/man1/help.1', `HELP(1)                      User Commands                     HELP(1)
+
+NAME
+        help - display help information
+
+SYNOPSIS
+        help [command]
+
+DESCRIPTION
+        Display helpful information about builtin commands. If COMMAND is
+        specified, display help for that command. Otherwise, display a list
+        of all available commands.
+
+EXAMPLES
+        help
+               Display a list of all available commands.
+
+        help ls
+               Display help for the ls command.
+
+SEE ALSO
+        man(1)
+`);
+
+    // save(1) - save filesystem state
+    this.createFile('/usr/share/man/man1/save.1', `SAVE(1)                      Linux Sim Commands               SAVE(1)
+
+NAME
+        save - save filesystem state to local storage
+
+SYNOPSIS
+        save
+
+DESCRIPTION
+        Save the current state of the filesystem to the browser's local storage.
+        This allows the filesystem state to persist between browser sessions.
+
+        The save operation includes all files, directories, permissions, and
+        current directory location.
+
+EXAMPLES
+        save
+               Save the current filesystem state.
+
+SEE ALSO
+        reset(1)
+`);
+
+    // reset(1) - reset filesystem to initial state
+    this.createFile('/usr/share/man/man1/reset.1', `RESET(1)                     Linux Sim Commands               RESET(1)
+
+NAME
+        reset - reset filesystem to initial state
+
+SYNOPSIS
+        reset
+
+DESCRIPTION
+        Clear the saved filesystem state from local storage and reset the
+        filesystem to its initial state. This will remove all user-created
+        files and directories.
+
+        Note: This command only clears the saved state. You must refresh the
+        page to see the reset filesystem.
+
+EXAMPLES
+        reset
+               Clear saved filesystem state.
+
+SEE ALSO
+        save(1)
+`);
+
+    // clear(1) - clear the terminal screen
+    this.createFile('/usr/share/man/man1/clear.1', `CLEAR(1)                     User Commands                    CLEAR(1)
+
+NAME
+        clear - clear the terminal screen
+
+SYNOPSIS
+        clear
+
+DESCRIPTION
+        Clear the terminal screen, removing all previous output and positioning
+        the cursor at the top of the screen.
+
+EXAMPLES
+        clear
+               Clear the terminal screen.
+
+SEE ALSO
+        reset(1)
+`);
+
+    // rmdir(1) - remove empty directories
+    this.createFile('/usr/share/man/man1/rmdir.1', `RMDIR(1)                     User Commands                    RMDIR(1)
+
+NAME
+       rmdir - remove empty directories
+
+SYNOPSIS
+       rmdir [OPTION]... DIRECTORY...
+
+DESCRIPTION
+       Remove the DIRECTORY(ies), if they are empty.
+
+       Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+       --ignore-fail-on-non-empty
+              ignore each failure that is solely because a directory is non-empty
+
+       -p, --parents
+              remove DIRECTORY and its ancestors; e.g., 'rmdir -p a/b/c' is
+              similar to 'rmdir a/b/c a/b a'
+
+EXAMPLES
+       rmdir test
+              Remove the directory 'test' if it is empty.
+
+       rmdir -p a/b/c
+              Remove directory 'a/b/c' and then 'a/b' and 'a' if they become empty.
+
+SEE ALSO
+       rm(1), mkdir(1)
+`);
+  }
+
+  private ensureManPagesExist(): void {
+    // Ensure man pages directory structure exists
+    if (!this.root.children!.has('usr')) {
+      this.createDirectory('usr', this.root);
+    }
+    const usrDir = this.root.children!.get('usr')!;
+
+    if (!usrDir.children!.has('share')) {
+      this.createDirectory('share', usrDir);
+    }
+    const share = usrDir.children!.get('share')!;
+
+    if (!share.children!.has('man')) {
+      this.createDirectory('man', share);
+    }
+    const man = share.children!.get('man')!;
+
+    if (!man.children!.has('man1')) {
+      this.createDirectory('man1', man);
+    }
+
+    const man1Dir = man.children!.get('man1')!;
+
+    // Check for missing man pages and create them individually
+    const requiredManPages = [
+      'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat',
+      'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
+      'man', 'help', 'save', 'reset', 'clear'
+    ];
+
+    for (const cmd of requiredManPages) {
+      if (!man1Dir.children!.has(`${cmd}.1`)) {
+        this.createIndividualManPage(cmd);
+      }
+    }
+  }
+
+  private createIndividualManPage(command: string): void {
+    switch (command) {
+      case 'ls':
+        this.createFile('/usr/share/man/man1/ls.1', `LS(1)                        User Commands                       LS(1)
+
+NAME
+       ls - list directory contents
+
+SYNOPSIS
+       ls [OPTION]... [FILE]...
+
+DESCRIPTION
+       List information about the FILEs (the current directory by default).
+       Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
+
+       Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+       -a, --all
+              do not ignore entries starting with .
+
+       -l     use a long listing format
+
+EXAMPLES
+       ls
+              List the contents of the current directory.
+
+       ls -l
+              List the contents of the current directory in long format.
+
+       ls -a
+              List all files, including hidden ones.
+
+SEE ALSO
+       dir(1), vdir(1)
+`);
+        break;
+
+      case 'cd':
+        this.createFile('/usr/share/man/man1/cd.1', `CD(1)                        User Commands                       CD(1)
+
+NAME
+       cd - change the working directory
+
+SYNOPSIS
+       cd [DIRECTORY]
+
+DESCRIPTION
+       Change the current directory to DIRECTORY. The default DIRECTORY is the
+       value of the HOME shell variable.
+
+       CD can also be entered as CHDIR. If DIRECTORY begins with a slash, it
+       is interpreted as an absolute path. Otherwise, it is interpreted as a
+       relative path to the current directory.
+
+EXAMPLES
+       cd
+              Change to the user's home directory.
+
+       cd /tmp
+              Change to the /tmp directory.
+
+       cd ..
+              Change to the parent directory.
+
+SEE ALSO
+       pwd(1), bash(1)
+`);
+        break;
+
+      case 'pwd':
+        this.createFile('/usr/share/man/man1/pwd.1', `PWD(1)                       User Commands                      PWD(1)
+
+NAME
+       pwd - print name of current/working directory
+
+SYNOPSIS
+       pwd [OPTION]...
+
+DESCRIPTION
+       Print the full filename of the current working directory.
+
+OPTIONS
+       -L, --logical
+              use PWD from environment, even if it contains symlinks
+
+       -P, --physical
+              avoid all symlinks
+
+EXAMPLES
+       pwd
+              Print the current working directory.
+
+SEE ALSO
+        getcwd(3), cd(1)
+`);
+        break;
+
+      case 'mkdir':
+        this.createFile('/usr/share/man/man1/mkdir.1', `MKDIR(1)                     User Commands                    MKDIR(1)
+
+NAME
+       mkdir - make directories
+
+SYNOPSIS
+       mkdir [OPTION]... DIRECTORY...
+
+DESCRIPTION
+       Create the DIRECTORY(ies), if they do not already exist.
+
+OPTIONS
+       -p, --parents
+              no error if existing, make parent directories as needed
+
+EXAMPLES
+       mkdir test
+              Create a directory called 'test'.
+
+       mkdir -p a/b/c
+              Create nested directories.
+
+SEE ALSO
+       rmdir(1), mkdir(2)
+`);
+        break;
+
+      case 'rmdir':
+        this.createFile('/usr/share/man/man1/rmdir.1', `RMDIR(1)                     User Commands                    RMDIR(1)
+
+NAME
+       rmdir - remove empty directories
+
+SYNOPSIS
+       rmdir [OPTION]... DIRECTORY...
+
+DESCRIPTION
+       Remove the DIRECTORY(ies), if they are empty.
+
+       Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+       --ignore-fail-on-non-empty
+              ignore each failure that is solely because a directory is non-empty
+
+       -p, --parents
+              remove DIRECTORY and its ancestors; e.g., 'rmdir -p a/b/c' is
+              similar to 'rmdir a/b/c a/b a'
+
+EXAMPLES
+       rmdir test
+              Remove the directory 'test' if it is empty.
+
+       rmdir -p a/b/c
+              Remove directory 'a/b/c' and then 'a/b' and 'a' if they become empty.
+
+SEE ALSO
+       rm(1), mkdir(1)
+`);
+        break;
+
+      // Add other man pages as needed...
+      default:
+        // For commands without detailed man pages, create a simple one
+        this.createFile(`/usr/share/man/man1/${command}.1`, `${command.toUpperCase()}(1)                   Linux Sim Commands                ${command.toUpperCase()}(1)
+
+NAME
+       ${command} - ${command} command
+
+SYNOPSIS
+       ${command} [OPTIONS]...
+
+DESCRIPTION
+       This is the ${command} command for the Linux Sim game.
+
+SEE ALSO
+       help(1), man(1)
+`);
+    }
+  }
+
+  private ensureBinariesExist(): void {
+    // Ensure /bin directory exists
+    if (!this.root.children!.has('bin')) {
+      this.createDirectory('bin', this.root);
+    }
+
+    const binDir = this.root.children!.get('bin')!;
+
+    // Check for missing binary files and create them
+    const requiredBinaries = [
+      'ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm',
+      'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
+      'man', 'help', 'save', 'reset', 'clear'
+    ];
+
+    for (const bin of requiredBinaries) {
+      if (!binDir.children!.has(`${bin}.bin`)) {
+        this.createFile(`/bin/${bin}.bin`, '#!/bin/bash\n# ${bin} command\n');
+      }
+    }
   }
 
   private createDirectory(name: string, parent: FileNode): FileNode {
@@ -319,6 +1267,9 @@ export class FakeFileSystem {
       return null; // Already exists
     }
 
+    // Determine file extension
+    const extension = fileName.includes('.') ? fileName.split('.').pop() : undefined;
+
     const file: FileNode = {
       name: fileName,
       type: 'file',
@@ -328,7 +1279,8 @@ export class FakeFileSystem {
       size: content.length,
       modified: new Date(),
       parent: current,
-      content
+      content,
+      extension
     };
 
     current.children!.set(fileName, file);
@@ -495,6 +1447,20 @@ export class FakeFileSystem {
     // Don't allow removing directories with contents (simplified)
     if (node.type === 'directory' && node.children && node.children.size > 0) {
       return false;
+    }
+
+    return node.parent.children.delete(node.name);
+  }
+
+  removeDirectory(path: string): boolean {
+    const node = this.resolvePath(path);
+    if (!node || node.type !== 'directory' || !node.parent || !node.parent.children) {
+      return false;
+    }
+
+    // Check if directory is empty (only . and .. if present)
+    if (node.children && node.children.size > 0) {
+      return false; // Directory not empty
     }
 
     return node.parent.children.delete(node.name);
