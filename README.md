@@ -22,4 +22,6 @@
     - su and sudo commands
         *sudo needs testing
     - arrow up for last commands
-    - 
+    - touch bug fixed X
+    - player begins in the proper directory.
+    - Initial prompt bug fixed
