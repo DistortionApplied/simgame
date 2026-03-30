@@ -33,10 +33,11 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [fs] = useState(() => new FakeFileSystem(setupData));
   const [currentUser, setCurrentUser] = useState(() => fs.getCurrentUser());
-  const [currentPrompt, setCurrentPrompt] = useState<string>('');
-  const prompt = useMemo(() =>
-    `${currentUser.name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `,
-    [currentUser, fs, setupData]
+  const [sessionUser, setSessionUser] = useState(() => fs.getCurrentUser());
+  const [workingDirectory, setWorkingDirectory] = useState(fs.getWorkingDirectory());
+  const currentPrompt = useMemo(() =>
+    `${currentUser.name}@${setupData?.computerName || 'linux-sim'}:${workingDirectory}$ `,
+    [currentUser, setupData, workingDirectory]
   );
 
   // Change to user's home directory on startup and initialize prompt
@@ -44,11 +45,19 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     if (fs && setupData) {
       const homeDir = fs.getCurrentUser().home;
       fs.changeDirectory(homeDir);
-      // Update prompt after changing to home directory
-      setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentUser(fs.getCurrentUser());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSessionUser(fs.getCurrentUser());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWorkingDirectory(fs.getWorkingDirectory());
     } else if (fs) {
-      // Initialize prompt even without setup data
-      setCurrentPrompt(`${fs.getCurrentUser().name}@linux-sim:${fs.getWorkingDirectory()}$ `);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentUser(fs.getCurrentUser());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSessionUser(fs.getCurrentUser());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWorkingDirectory(fs.getWorkingDirectory());
     }
   }, [fs, setupData]);
   const [awaitingPassword, setAwaitingPassword] = useState(false);
@@ -57,6 +66,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   const [isRebooting, setIsRebooting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
+  const isPasswordHandledRef = useRef(false);
 
   // Helper method for find command
   const findFiles = (dir: any, pattern: string, currentPath: string, results: string[]) => {
@@ -78,19 +88,23 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   // Helper method for recursive directory removal
   const removeDirectoryRecursive = (path: string) => {
     const node = fs.getNode(path);
-    if (!node || node.type !== 'directory' || !node.children) return;
+    if (!node || node.type !== 'directory') return;
 
-    // Recursively remove all children first
-    for (const [name, childNode] of node.children) {
-      if (childNode.type === 'directory') {
-        removeDirectoryRecursive(`${path}/${name}`);
-      } else {
-        fs.remove(`${path}/${name}`);
+    if (node.children) {
+      for (const [name, childNode] of Array.from(node.children)) {
+        const childPath = path === '/' ? `/${name}` : `${path}/${name}`;
+        if (childNode.type === 'directory') {
+          removeDirectoryRecursive(childPath);
+        } else {
+          fs.remove(childPath);
+        }
       }
     }
 
-    // Remove the directory itself
-    fs.removeDirectory(path);
+    // Now remove the directory itself from its parent
+    if (node.parent && node.parent.children) {
+      node.parent.children.delete(node.name);
+    }
   };
 
   const executeCommand = (command: string) => {
@@ -98,10 +112,14 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
 
     // Handle password input
     if (awaitingPassword && passwordCallback) {
+      isPasswordHandledRef.current = false;
       passwordCallback(command);
-      setAwaitingPassword(false);
-      setPasswordCallback(null);
-      setPasswordPrompt('');
+      if (!isPasswordHandledRef.current) {
+        setAwaitingPassword(false);
+        setPasswordCallback(null);
+        setPasswordPrompt('');
+        setCurrentInput('');
+      }
       return;
     }
 
@@ -369,8 +387,25 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           homeNode.gid = newUser.gid;
         }
 
-        output = `adduser: user '${username}' added successfully`;
-        break;
+        // Prompt for password
+        promptForPassword(`New password for ${username}: `, (newPassword) => {
+          if (!newPassword.trim()) {
+            // Password cannot be empty, remove the user
+            fs.getUsers().delete(username);
+            removeDirectoryRecursive(newUser.home);
+            setLines(prev => [...prev,
+              { type: 'input', content: command, commandPrompt: currentPrompt },
+              { type: 'error', content: 'adduser: Password cannot be empty' }
+            ]);
+            return;
+          }
+          newUser.password = newPassword;
+          setLines(prev => [...prev,
+            { type: 'input', content: command, commandPrompt: currentPrompt },
+            { type: 'output', content: `adduser: user '${username}' added successfully` }
+          ]);
+        });
+        return; // Don't process further since we're prompting for password
       }
 
       case 'userdel': {
@@ -381,8 +416,9 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
 
         const username = args[0];
 
-        // Check if current user is root
-        if (fs.getCurrentUser().uid !== 0) {
+        // Check if current user is root (only root can delete users)
+        const currentUser = fs.getCurrentUser();
+        if (currentUser.uid !== 0) {
           error = 'userdel: Only root may remove a user or group from the system.';
           break;
         }
@@ -400,8 +436,8 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           break;
         }
 
-        // Cannot delete current user
-        if (userToDelete.uid === fs.getCurrentUser().uid) {
+        // Cannot delete current user (check session user)
+        if (userToDelete.uid === sessionUser.uid || userToDelete.name === sessionUser.name) {
           error = 'userdel: cannot remove current user';
           break;
         }
@@ -437,6 +473,10 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         if (!targetUser.password) {
           // Set new password without requiring old password
           promptForPassword('New password: ', (newPassword) => {
+            if (!newPassword.trim()) {
+              setLines(prev => [...prev, { type: 'error', content: 'passwd: Password cannot be empty' }]);
+              return;
+            }
             promptForPassword('Retype new password: ', (confirmPassword) => {
               if (newPassword !== confirmPassword) {
                 setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
@@ -458,7 +498,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
                 return;
               }
 
-             promptForPassword('New password: ', (newPassword) => {
+              promptForPassword('New password: ', (newPassword) => {
                 if (!newPassword.trim()) {
                   setLines(prev => [...prev, { type: 'error', content: 'passwd: Password cannot be empty' }]);
                   return;
@@ -476,6 +516,10 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           } else {
             // Root changing another user's password - no current password required
             promptForPassword(`New password for ${targetUsername}: `, (newPassword) => {
+              if (!newPassword.trim()) {
+                setLines(prev => [...prev, { type: 'error', content: 'passwd: Password cannot be empty' }]);
+                return;
+              }
               promptForPassword('Retype new password: ', (confirmPassword) => {
                 if (newPassword !== confirmPassword) {
                   setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
@@ -527,8 +571,8 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         }
 
         if (fs.changeDirectory(targetPath)) {
-          // Directory changed successfully, update prompt
-          setCurrentPrompt(`${currentUser.name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);
+          // Directory changed successfully
+          setWorkingDirectory(fs.getWorkingDirectory());
         } else {
           error = `cd: ${path}: No such file or directory`;
         }
@@ -627,7 +671,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         } else {
           const contents: string[] = [];
           const failedFiles: string[] = [];
-
           args.forEach(file => {
             const content = fs.readFile(file);
             if (content !== null) {
@@ -793,7 +836,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           }
           // Update prompt after user switch
           setCurrentUser(fs.getCurrentUser());
-          setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);;
+          setWorkingDirectory(fs.getWorkingDirectory());
         });
         return; // Don't add command line to output when prompting for password
       }
@@ -817,12 +860,12 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           if (fs.authenticateUser(targetUserName, password)) {
             fs.switchUser(targetUser);
             setLines(prev => [...prev, { type: 'output', content: `Switched to user ${targetUserName}` }]);
+            setCurrentUser(targetUser);
+            setSessionUser(targetUser);
+            setWorkingDirectory(fs.getWorkingDirectory());
           } else {
             setLines(prev => [...prev, { type: 'error', content: 'su: Authentication failure' }]);
           }
-          // Update prompt after user switch
-          setCurrentUser(fs.getCurrentUser());
-          setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);
         });
         return; // Don't add command line to output when prompting for password
       }
@@ -932,9 +975,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
             { type: 'output', content: 'Begin: Running /scripts/init-bottom ... [    0.10] done.' },
             { type: 'output', content: '' },
             { type: 'output', content: '[    1.234567] systemd[1]: systemd 249.11-0ubuntu3.9 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE -BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTEMPTER +SYSTEMD_GROUP +SYSTEMD_RESOLVE +SYSTEMD_CREDS +SYSTEMD_HOME +SYSTEMD_XZ -GNOME_KEYRING)' },
-            { type: 'output', content: '[    1.234567] systemd[1]: Detected virtualization container.' },
-            { type: 'output', content: '[    1.234567] systemd[1]: Detected architecture x86-64.' },
-            { type: 'output', content: '[    1.234567] systemd[1]: Running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE -BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTEMPTER +SYSTEMD_GROUP +SYSTEMD_RESOLVE +SYSTEMD_CREDS +SYSTEMD_HOME +SYSTEMD_XZ -GNOME_KEYRING)' },
+            { type: 'output', content: '[    1.234567] systemd[1]: systemd 249.11-0ubuntu3.9 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE -BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTEMPTER +SYSTEMD_GROUP +SYSTEMD_RESOLVE +SYSTEMD_CREDS +SYSTEMD_HOME +SYSTEMD_XZ -GNOME_KEYRING)' },
             { type: 'output', content: '[    1.345678] systemd[1]: No hostname configured.' },
             { type: 'output', content: '[    1.345678] systemd[1]: Set hostname to <linux-sim>.' }
           ]);
@@ -1036,7 +1077,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     // Add all lines at once to ensure correct order
     setLines(prev => [...prev, ...newLines]);
 
-
     // Save filesystem state after each command
     fs.saveToLocalStorage();
   };
@@ -1064,13 +1104,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     } else if (e.key === 'Tab') {
       e.preventDefault();
       handleTabCompletion();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (commandHistory.length > 0) {
-        const newIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
-        setHistoryIndex(newIndex);
-        setCurrentInput(commandHistory[newIndex]);
-      }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyIndex >= 0) {
@@ -1095,16 +1128,18 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     // Determine if this is command completion or path completion
     const isPathCompletion = currentPart.includes('/') || currentPart.startsWith('.');
 
-    if (!isPathCompletion && parts.length === 1) {
+    if (!isPathCompletion) {
       // Command completion
       const completions: string[] = getCommandCompletions(currentPart);
       if (completions.length === 1) {
-        setCurrentInput(completions[0]);
+        const newInput = [...prevParts, completions[0]].join(' ');
+        setCurrentInput(newInput);
       } else if (completions.length > 1) {
         // Show possible completions
         const commonPrefix: string = getCommonPrefix(completions);
         if (commonPrefix.length > currentPart.length) {
-          setCurrentInput(commonPrefix);
+          const newInput = [...prevParts, commonPrefix].join(' ');
+          setCurrentInput(newInput);
         } else {
           // Show all completions
           setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
@@ -1175,6 +1210,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   };
 
   const promptForPassword = (promptText: string, callback: (password: string) => void) => {
+    isPasswordHandledRef.current = true;
     setPasswordPrompt(promptText);
     setAwaitingPassword(true);
     setPasswordCallback(() => callback);
@@ -1185,6 +1221,8 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [lines]);
+
+
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -1229,6 +1267,9 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
               autoFocus
               disabled={!fs}
               placeholder={awaitingPassword ? "" : ""}
+              spellCheck="false"
+              autoCorrect="off"
+              autoComplete="off"
             />
           </div>
         )}
