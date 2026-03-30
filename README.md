@@ -25,3 +25,16 @@
     - touch bug fixed X
     - player begins in the proper directory.
     - Initial prompt bug fixed
+1.4 revisions and improvements
+    - faux reboot improved.
+    - Permissions improved
+        *still needs work
+    - LOTS of testing
+    - solved some fuckery with the command prompt
+    - sudo tested preliminarily
+    - directory navigation function tested correctly.
+    - autocomplete bug addressed
+    - permissions testing done. preliminarily
+    - adduser and userdel added
+        *needs passwd
+    - ***ADDRESSING NEWLY ADDED USER PASSWORD PRONLEM***

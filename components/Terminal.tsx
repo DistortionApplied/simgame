@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { FakeFileSystem } from '../lib/filesystem';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { FakeFileSystem, User } from '../lib/filesystem';
 
 interface TerminalLine {
   type: 'input' | 'output' | 'error';
@@ -32,18 +32,29 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [fs] = useState(() => new FakeFileSystem(setupData));
+  const [currentUser, setCurrentUser] = useState(() => fs.getCurrentUser());
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
+  const prompt = useMemo(() =>
+    `${currentUser.name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `,
+    [currentUser, fs, setupData]
+  );
 
-  // Change to user's home directory on startup
+  // Change to user's home directory on startup and initialize prompt
   useEffect(() => {
     if (fs && setupData) {
       const homeDir = fs.getCurrentUser().home;
       fs.changeDirectory(homeDir);
+      // Update prompt after changing to home directory
+      setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);
+    } else if (fs) {
+      // Initialize prompt even without setup data
+      setCurrentPrompt(`${fs.getCurrentUser().name}@linux-sim:${fs.getWorkingDirectory()}$ `);
     }
   }, [fs, setupData]);
   const [awaitingPassword, setAwaitingPassword] = useState(false);
   const [passwordCallback, setPasswordCallback] = useState<((password: string) => void) | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState('');
+  const [isRebooting, setIsRebooting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
 
@@ -62,6 +73,24 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         findFiles(node, pattern, fullPath, results);
       }
     }
+  };
+
+  // Helper method for recursive directory removal
+  const removeDirectoryRecursive = (path: string) => {
+    const node = fs.getNode(path);
+    if (!node || node.type !== 'directory' || !node.children) return;
+
+    // Recursively remove all children first
+    for (const [name, childNode] of node.children) {
+      if (childNode.type === 'directory') {
+        removeDirectoryRecursive(`${path}/${name}`);
+      } else {
+        fs.remove(`${path}/${name}`);
+      }
+    }
+
+    // Remove the directory itself
+    fs.removeDirectory(path);
   };
 
   const executeCommand = (command: string) => {
@@ -83,7 +112,41 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     setCommandHistory(prev => [...prev, trimmedCommand]);
     setHistoryIndex(-1);
 
-    const parts = trimmedCommand.split(' ');
+    // Parse redirection operators
+    let redirectOutput: string | null = null;
+    let redirectInput: string | null = null;
+    let appendOutput = false;
+
+    // Simple redirection parsing (basic support)
+    const redirectIndex = trimmedCommand.indexOf(' >');
+    const appendIndex = trimmedCommand.indexOf(' >>');
+    const inputIndex = trimmedCommand.indexOf(' <');
+
+    let commandPart = trimmedCommand;
+
+    // Handle output redirection (overwrite)
+    if (redirectIndex !== -1) {
+      const parts = trimmedCommand.split(' >', 2);
+      commandPart = parts[0].trim();
+      redirectOutput = parts[1].trim();
+      appendOutput = false;
+    }
+    // Handle output redirection (append) - check this first since >> contains >
+    else if (appendIndex !== -1) {
+      const parts = trimmedCommand.split(' >>', 2);
+      commandPart = parts[0].trim();
+      redirectOutput = parts[1].trim();
+      appendOutput = true;
+    }
+
+    // Handle input redirection
+    if (inputIndex !== -1) {
+      const parts = commandPart.split(' <', 2);
+      commandPart = parts[0].trim();
+      redirectInput = parts[1].trim();
+    }
+
+    const parts = commandPart.split(' ');
     const cmd = parts[0];
     const args = parts.slice(1);
 
@@ -91,7 +154,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     let error: string = '';
 
     // Check if command binary exists (except for built-in commands)
-    const builtinCommands = ['cd', 'pwd', 'help', 'clear', 'debug', 'nano', 'sudo', 'su', 'reboot'];
+    const builtinCommands = ['cd', 'pwd', 'help', 'clear', 'debug', 'nano', 'sudo', 'su', 'reboot', 'ls', 'touch', 'cat', 'mkdir', 'rmdir', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'save', 'reset', 'adduser', 'userdel', 'passwd'];
     if (!builtinCommands.includes(cmd)) {
       const binaryPath = `/bin/${cmd}.bin`;
       if (!fs.readFile(binaryPath)) {
@@ -101,8 +164,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         if (error) {
           setLines(prev => [...prev, { type: 'error', content: error }]);
         }
-        // Update prompt
-        setCurrentPrompt(`${setupData?.playerName?.toLowerCase() || 'user'}@${setupData?.computerName || 'linux-sim'}:${fs.getAbsolutePath()}$ `);
         // Save filesystem state
         fs.saveToLocalStorage();
         return;
@@ -114,7 +175,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         const commands = [
           ['help', 'Show this help'],
           ['man <cmd>', 'Display manual page for command'],
-          ['ls [opts] [dir]', 'List directory contents (-l long format, -a show hidden)'],
+          ['ls [opts] [dir]', 'List directory contents (-l long format, -a show hidden, -d directory info)'],
           ['cd <dir>', 'Change directory (~ for home)'],
           ['pwd', 'Print working directory'],
           ['mkdir <dir>', 'Create directory'],
@@ -123,6 +184,9 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           ['rm <file>', 'Remove file'],
           ['cat <file>', 'Display file contents'],
           ['nano <file>', 'Edit file with nano text editor'],
+          ['adduser <user>', 'Add a user to the system (root only)'],
+          ['userdel <user>', 'Delete a user from the system (root only)'],
+          ['passwd [user]', 'Change password (root can change any user\'s password)'],
           ['sudo <cmd>', 'Execute command as root'],
           ['su [user]', 'Switch to another user account'],
           ['cp <src> <dst>', 'Copy file'],
@@ -149,6 +213,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       case 'ls': {
         let showHidden = false;
         let longFormat = false;
+        let directoryOnly = false;
         let targetPath = '.';
 
         // Parse options
@@ -161,9 +226,18 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
             longFormat = true;
             return false;
           }
+          if (arg === '-d' || arg === '--directory') {
+            directoryOnly = true;
+            return false;
+          }
           if (arg === '-la' || arg === '-al') {
             showHidden = true;
             longFormat = true;
+            return false;
+          }
+          if (arg === '-ld') {
+            longFormat = true;
+            directoryOnly = true;
             return false;
           }
           return true;
@@ -173,7 +247,22 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           targetPath = filteredArgs[0];
         }
 
-        const files = fs.listDirectory(targetPath, showHidden);
+        let files: any[];
+        if (directoryOnly) {
+          // Show information about the directory itself, not its contents
+          const dirNode = fs.getNode(targetPath);
+          files = dirNode ? [dirNode] : [];
+        } else {
+          // Check if targetPath is a file
+          const targetNode = fs.getNode(targetPath);
+          if (targetNode && targetNode.type === 'file') {
+            // If it's a specific file, show info about that file only
+            files = [targetNode];
+          } else {
+            // Otherwise, list the directory contents
+            files = fs.listDirectory(targetPath, showHidden);
+          }
+        }
         if (files.length === 0) {
           output = '';
         } else if (longFormat) {
@@ -190,12 +279,13 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
             const owner = (fs.getUserById(file.uid)?.name || file.uid.toString()).padEnd(maxOwnerWidth);
             const group = (fs.getGroupById(file.gid)?.name || file.gid.toString()).padEnd(maxGroupWidth);
             const size = file.size.toString().padStart(8);
-            const date = file.modified.toLocaleDateString('en-US', {
+            const date = file.modified.toLocaleString('en-US', {
               month: 'short',
               day: '2-digit',
               hour: '2-digit',
-              minute: '2-digit'
-            });
+              minute: '2-digit',
+              hour12: false
+            }).replace(',', '');
             const fileName = file.type === 'directory' ? `${file.name}/` : file.name;
             return `${type}${perms} ${links} ${owner} ${group} ${size} ${date} ${fileName}`;
           }).join('\n');
@@ -208,157 +298,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
               return file.name;
             }
           }).join('\n');
-        }
-        break;
-      }
-
-      case 'cd': {
-        const path = args[0] || '~';
-        let targetPath = path;
-
-        // Handle ~ expansion
-        if (path === '~' || path.startsWith('~/')) {
-          const home = fs.getCurrentUser().home;
-          targetPath = path === '~' ? home : home + path.substring(1);
-        }
-
-        if (fs.changeDirectory(targetPath)) {
-          // Directory changed successfully, prompt will update
-        } else {
-          error = `cd: ${path}: No such file or directory`;
-        }
-        break;
-      }
-
-      case 'pwd':
-        output = fs.getWorkingDirectory();
-        break;
-
-      case 'mkdir': {
-        if (args.length === 0) {
-          error = 'mkdir: missing operand\nUsage: mkdir <directory>';
-        } else {
-          const failedDirs: string[] = [];
-          args.forEach(dir => {
-            if (!fs.createNewDirectory(dir)) {
-              failedDirs.push(dir);
-            }
-          });
-          if (failedDirs.length > 0) {
-            error = `mkdir: cannot create directory '${failedDirs[0]}': File exists`;
-          }
-        }
-        break;
-      }
-
-      case 'rmdir': {
-        if (args.length === 0) {
-          error = 'rmdir: missing operand\nUsage: rmdir <directory>';
-        } else {
-          const failedDirs: string[] = [];
-          args.forEach(dir => {
-            if (!fs.removeDirectory(dir)) {
-              failedDirs.push(dir);
-            }
-          });
-          if (failedDirs.length > 0) {
-            error = `rmdir: failed to remove '${failedDirs[0]}': Directory not empty or does not exist`;
-          }
-        }
-        break;
-      }
-
-      case 'touch': {
-        if (args.length === 0) {
-          error = 'touch: missing file operand';
-        } else {
-          const failedFiles: string[] = [];
-          args.forEach(file => {
-            if (!fs.createNewFile(file)) {
-              failedFiles.push(file);
-            }
-          });
-          if (failedFiles.length > 0) {
-            error = `touch: cannot touch '${failedFiles[0]}': File exists or invalid path`;
-          }
-        }
-        break;
-      }
-
-      case 'rm': {
-        if (args.length === 0) {
-          error = 'rm: missing operand';
-        } else {
-          const failedFiles: string[] = [];
-          args.forEach(file => {
-            if (!fs.remove(file)) {
-              failedFiles.push(file);
-            }
-          });
-          if (failedFiles.length > 0) {
-            error = `rm: cannot remove '${failedFiles[0]}': No such file or directory`;
-          }
-        }
-        break;
-      }
-
-      case 'cat': {
-        if (args.length === 0) {
-          error = 'cat: missing file operand';
-        } else {
-          const contents: string[] = [];
-          const failedFiles: string[] = [];
-
-          args.forEach(file => {
-            const content = fs.readFile(file);
-            if (content !== null) {
-              contents.push(content);
-            } else {
-              failedFiles.push(file);
-            }
-          });
-
-          if (failedFiles.length > 0) {
-            error = `cat: ${failedFiles[0]}: No such file or directory`;
-          } else {
-            output = contents.join('\n');
-          }
-        }
-        break;
-      }
-
-      case 'cp': {
-        if (args.length < 2) {
-          error = 'cp: missing file operand\nUsage: cp <source> <destination>';
-        } else {
-          const [src, dst] = args;
-          if (!fs.copyFile(src, dst)) {
-            error = `cp: cannot copy '${src}' to '${dst}': No such file or directory`;
-          }
-        }
-        break;
-      }
-
-      case 'mv': {
-        if (args.length < 2) {
-          error = 'mv: missing file operand\nUsage: mv <source> <destination>';
-        } else {
-          const [src, dst] = args;
-          if (!fs.moveFile(src, dst)) {
-            error = `mv: cannot move '${src}' to '${dst}': No such file or directory`;
-          }
-        }
-        break;
-      }
-
-      case 'chmod': {
-        if (args.length < 2) {
-          error = 'chmod: missing operand\nUsage: chmod <mode> <file>';
-        } else {
-          const [mode, file] = args;
-          if (!fs.changePermissions(file, mode)) {
-            error = `chmod: invalid mode '${mode}' or file '${file}' not found`;
-          }
         }
         break;
       }
@@ -382,338 +321,173 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         break;
       }
 
-      case 'whoami': {
-        output = fs.getCurrentUser().name;
-        break;
-      }
-
-      case 'id': {
-        const user = fs.getCurrentUser();
-        const group = fs.getGroupByName(user.gid.toString());
-        output = `uid=${user.uid}(${user.name}) gid=${user.gid}(${group?.name || user.gid}) groups=${user.gid}(${group?.name || user.gid})`;
-        break;
-      }
-
-      case 'echo': {
-        output = args.join(' ');
-        break;
-      }
-
-      case 'grep': {
-        if (args.length < 2) {
-          error = 'grep: usage: grep <pattern> <file>';
-        } else {
-          const [pattern, file] = args;
-          const content = fs.readFile(file);
-          if (content === null) {
-            error = `grep: ${file}: No such file or directory`;
-          } else {
-            const lines = content.split('\n');
-            const matches = lines.filter(line => line.includes(pattern));
-            output = matches.join('\n');
-          }
-        }
-        break;
-      }
-
-      case 'find': {
-        if (args.length < 3) {
-          error = 'find: usage: find <path> -name <pattern>';
-        } else {
-          const [path, flag, pattern] = args;
-          if (flag !== '-name') {
-            error = 'find: only -name flag supported';
-          } else {
-            const startDir = fs.getNode(path);
-            if (!startDir || startDir.type !== 'directory') {
-              error = `find: '${path}': No such file or directory`;
-            } else {
-              const results: string[] = [];
-              findFiles(startDir, pattern, path, results);
-              output = results.join('\n');
-            }
-          }
-        }
-        break;
-      }
-
-      case 'save':
-        if (fs.saveToLocalStorage()) {
-          output = 'Filesystem state saved successfully.';
-        } else {
-          error = 'Failed to save filesystem state.';
-        }
-        break;
-
-      case 'debug': {
-        const manDir = fs.getNode('/usr/share/man/man1');
-        if (manDir) {
-          const files = fs.listDirectory('/usr/share/man/man1', true);
-          const fileList = files.map(f => f.name).join('\n');
-          output = `Man pages directory: ${files.length} files found\n${fileList}`;
-        } else {
-          output = 'Error: Man pages directory not found';
-        }
-        break;
-      }
-
-      case 'reset':
-        fs.clearLocalStorage();
-        output = 'Filesystem reset. Refresh the page to start fresh.';
-        break;
-
-      case 'man': {
+      case 'adduser': {
         if (args.length === 0) {
-          error = 'What manual page do you want?\nUsage: man <command>';
-        } else {
-          const command = args[0];
-          const manPagePath = `/usr/share/man/man1/${command}.1`;
-          const content = fs.readFile(manPagePath);
-
-          if (content !== null) {
-            output = content;
-          } else {
-            error = `man: No manual entry for ${command}\nTry 'help' to see available commands.`;
-          }
-        }
-        break;
-      }
-
-      case 'nano': {
-        if (args.length === 0) {
-          error = 'nano: missing file operand\nUsage: nano <file>';
-        } else {
-          const filePath = args[0];
-          const fullPath = fs.getAbsolutePath(filePath);
-          const content = fs.readFile(fullPath) || '';
-          onOpenEditor(fullPath, content);
-          return; // Don't add any lines to terminal when opening editor
-        }
-        break;
-      }
-
-      case 'sudo': {
-        if (args.length === 0) {
-          error = 'sudo: missing command\nUsage: sudo <command>';
+          error = 'adduser: missing operand\nUsage: adduser <username>';
           break;
         }
 
-        const originalUser = fs.getCurrentUser();
-        const rootUser = fs.getUsers().get('root');
-        if (!rootUser) {
-          error = 'sudo: root user not found';
+        const username = args[0];
+
+        // Check if current user is root
+        if (fs.getCurrentUser().uid !== 0) {
+          error = 'adduser: Only root may add a user or group to the system.';
           break;
         }
 
-        // Prompt for password
-        promptForPassword(`[sudo] password for ${originalUser.name}: `, (password) => {
-          if (fs.authenticateUser('root', password)) {
-            // Switch to root temporarily
-            fs.switchUser(rootUser);
+        // Validate username (basic validation)
+        if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(username)) {
+          error = `adduser: invalid username '${username}'`;
+          break;
+        }
 
-            // Execute the command as root
-            const sudoCommand = args.join(' ');
-            executeCommand(sudoCommand);
+        // Check if user already exists
+        const existingUser = fs.getUsers().get(username);
+        if (existingUser) {
+          error = `adduser: The user '${username}' already exists.`;
+          break;
+        }
 
-            // Switch back to original user
-            fs.switchUser(originalUser);
-          } else {
-            setLines(prev => [...prev, { type: 'error', content: 'sudo: authentication failure' }]);
-          }
-          // Update prompt after user switch
-          setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getAbsolutePath()}$ `);
-        });
-        return; // Don't add command line to output when prompting for password
+        // Create the user
+        const newUser: User = {
+          uid: Math.max(...Array.from(fs.getUsers().values()).map(u => u.uid)) + 1,
+          name: username,
+          gid: 1000, // Default users group
+          home: `/home/${username}`,
+          shell: '/bin/bash'
+        };
+
+        // Add user to filesystem
+        fs.getUsers().set(username, newUser);
+
+        // Create home directory
+        fs.createNewDirectory(newUser.home);
+        // Set ownership of home directory to the new user
+        const homeNode = fs.getNode(newUser.home);
+        if (homeNode) {
+          homeNode.uid = newUser.uid;
+          homeNode.gid = newUser.gid;
+        }
+
+        output = `adduser: user '${username}' added successfully`;
+        break;
       }
 
-      case 'su': {
-        const targetUserName = args[0] || 'root';
-        const targetUser = fs.getUsers().get(targetUserName);
+      case 'userdel': {
+        if (args.length === 0) {
+          error = 'userdel: missing operand\nUsage: userdel <username>';
+          break;
+        }
+
+        const username = args[0];
+
+        // Check if current user is root
+        if (fs.getCurrentUser().uid !== 0) {
+          error = 'userdel: Only root may remove a user or group from the system.';
+          break;
+        }
+
+        // Cannot delete root user
+        if (username === 'root') {
+          error = 'userdel: cannot remove root user';
+          break;
+        }
+
+        // Check if user exists
+        const userToDelete = fs.getUsers().get(username);
+        if (!userToDelete) {
+          error = `userdel: user '${username}' does not exist`;
+          break;
+        }
+
+        // Cannot delete current user
+        if (userToDelete.uid === fs.getCurrentUser().uid) {
+          error = 'userdel: cannot remove current user';
+          break;
+        }
+
+        // Remove user's home directory and all contents
+        const homeDir = userToDelete.home;
+        removeDirectoryRecursive(homeDir);
+
+        // Remove user from filesystem
+        fs.getUsers().delete(username);
+
+        output = `userdel: user '${username}' removed successfully`;
+        break;
+      }
+
+      case 'passwd': {
+        const targetUsername = args[0] || fs.getCurrentUser().name;
+        const currentUser = fs.getCurrentUser();
+        const targetUser = fs.getUsers().get(targetUsername);
 
         if (!targetUser) {
-          error = `su: user '${targetUserName}' does not exist`;
+          error = `passwd: user '${targetUsername}' does not exist`;
           break;
         }
 
-        if (targetUser.uid === fs.getCurrentUser().uid) {
-          // Already this user
+        // Only root can change other users' passwords
+        if (targetUsername !== currentUser.name && currentUser.uid !== 0) {
+          error = 'passwd: You may not view or modify password information for ' + targetUsername;
           break;
         }
 
-        // Prompt for password
-        promptForPassword(`Password for ${targetUserName}: `, (password) => {
-          if (fs.authenticateUser(targetUserName, password)) {
-            fs.switchUser(targetUser);
-            setLines(prev => [...prev, { type: 'output', content: `Switched to user ${targetUserName}` }]);
+        // If user has no password (freshly created), they can set one without old password
+        if (!targetUser.password) {
+          // Set new password without requiring old password
+          promptForPassword('New password: ', (newPassword) => {
+            promptForPassword('Retype new password: ', (confirmPassword) => {
+              if (newPassword !== confirmPassword) {
+                setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
+              } else {
+                targetUser.password = newPassword;
+                setLines(prev => [...prev, { type: 'output', content: `passwd: password updated successfully` }]);
+              }
+            });
+          });
+        } else {
+          // Require current password for password changes
+          const isChangingOwnPassword = targetUsername === currentUser.name;
+
+          if (isChangingOwnPassword) {
+            // Changing own password - require current password
+            promptForPassword('Current password: ', (currentPassword) => {
+              if (!fs.authenticateUser(currentUser.name, currentPassword)) {
+                setLines(prev => [...prev, { type: 'error', content: 'passwd: Authentication failure' }]);
+                return;
+              }
+
+             promptForPassword('New password: ', (newPassword) => {
+                if (!newPassword.trim()) {
+                  setLines(prev => [...prev, { type: 'error', content: 'passwd: Password cannot be empty' }]);
+                  return;
+                }
+                promptForPassword('Retype new password: ', (confirmPassword) => {
+                  if (newPassword !== confirmPassword) {
+                    setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
+                  } else {
+                    targetUser.password = newPassword;
+                    setLines(prev => [...prev, { type: 'output', content: `passwd: password updated successfully` }]);
+                  }
+                });
+              });
+            });
           } else {
-            setLines(prev => [...prev, { type: 'error', content: 'su: Authentication failure' }]);
+            // Root changing another user's password - no current password required
+            promptForPassword(`New password for ${targetUsername}: `, (newPassword) => {
+              promptForPassword('Retype new password: ', (confirmPassword) => {
+                if (newPassword !== confirmPassword) {
+                  setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
+                } else {
+                  targetUser.password = newPassword;
+                  setLines(prev => [...prev, { type: 'output', content: `passwd: password for ${targetUsername} updated successfully` }]);
+                }
+              });
+            });
           }
-          // Update prompt after user switch
-          setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getAbsolutePath()}$ `);
-        });
-        return; // Don't add command line to output when prompting for password
-      }
-
-      case 'reboot': {
-        // Show shutdown messages
-        setLines(prev => [...prev,
-          { type: 'output', content: 'System going down for reboot...' },
-          { type: 'output', content: '[  OK  ] Stopped target Multi-User System.' },
-          { type: 'output', content: '[  OK  ] Stopped target Graphical Interface.' },
-          { type: 'output', content: '[  OK  ] Stopped OpenSSH Daemon.' },
-          { type: 'output', content: '[  OK  ] Stopped Apache HTTP Server.' },
-          { type: 'output', content: '[  OK  ] Stopped MySQL Database Server.' },
-          { type: 'output', content: '' },
-          { type: 'output', content: 'Restarting system...' },
-          { type: 'output', content: '' }
-        ]);
-
-        // Simulate boot sequence with a delay
-        setTimeout(() => {
-          setLines(prev => [...prev,
-            { type: 'output', content: 'BIOS Information' },
-            { type: 'output', content: 'Vendor: Linux Sim BIOS' },
-            { type: 'output', content: 'Version: 1.0' },
-            { type: 'output', content: 'Release Date: ' + new Date().toISOString().split('T')[0] },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'CPU: Linux Sim Processor (1 cores, 1 threads)' },
-            { type: 'output', content: 'Memory: 512 MB' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Linux version 5.15.0-91-generic (buildd@lcy02-amd64-001) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:33 UTC 2023' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.000000] Linux version 5.15.0-91-generic (buildd@lcy02-amd64-001) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:33 UTC 2023 (Ubuntu 5.15.0-91.101-generic 5.15.122)' },
-            { type: 'output', content: '[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-5.15.0-91-generic root=UUID=xxxx ro quiet splash' },
-            { type: 'output', content: '[    0.000000] KERNEL supported cpus:' },
-            { type: 'output', content: '[    0.000000]   Intel GenuineIntel' },
-            { type: 'output', content: '[    0.000000]   AMD AuthenticAMD' },
-            { type: 'output', content: '[    0.000000]   Centaur CentaurHauls' },
-            { type: 'output', content: '[    0.000000] x86/fpu: Supporting XSAVE feature 0x001: \'x87 floating point registers\'' },
-            { type: 'output', content: '[    0.000000] x86/fpu: Supporting XSAVE feature 0x002: \'SSE registers\'' },
-            { type: 'output', content: '[    0.000000] x86/fpu: Supporting XSAVE feature 0x004: \'AVX registers\'' },
-            { type: 'output', content: '[    0.000000] x86/fpu: State size 0x340, using 0x200' },
-            { type: 'output', content: '[    0.000000] BIOS-provided physical RAM map:' },
-            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable' },
-            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved' },
-            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved' },
-            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000001fffffff] usable' },
-            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved' },
-            { type: 'output', content: '[    0.000000] NX (Execute Disable) protection: active' },
-            { type: 'output', content: '[    0.000000] SMBIOS 2.8 present.' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.010000] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)' },
-            { type: 'output', content: '[    0.010000] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.020000] CPU: Physical Processor ID: 0' },
-            { type: 'output', content: '[    0.020000] CPU: Processor Core ID: 0' },
-            { type: 'output', content: '[    0.020000] CPU: L1 Cache: 64K (64 bytes/line)' },
-            { type: 'output', content: '[    0.020000] CPU: L2 Cache: 4096K (64 bytes/line)' },
-            { type: 'output', content: '[    0.020000] CPU: L3 Cache: 16384K (64 bytes/line)' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.030000] devtmpfs: initialized' },
-            { type: 'output', content: '[    0.030000] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns' },
-            { type: 'output', content: '[    0.030000] futex hash table entries: 256 (order: 2, 16384 bytes, linear)' },
-            { type: 'output', content: '[    0.030000] pinctrl core: initialized pinctrl subsystem' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.040000] NET: Registered protocol family 16' },
-            { type: 'output', content: '[    0.040000] thermal_sys: Registered thermal governor \'step_wise\'' },
-            { type: 'output', content: '[    0.040000] thermal_sys: Registered thermal governor \'user_space\'' },
-            { type: 'output', content: '[    0.040000] cpuidle: using governor ladder' },
-            { type: 'output', content: '[    0.040000] cpuidle: using governor menu' },
-            { type: 'output', content: '[    0.040000] ACPI: bus type PCI registered' },
-            { type: 'output', content: '[    0.040000] PCI: MMCONFIG for domain 0000 [bus 00-ff] at [mem 0xb0000000-0xbfffffff] (base 0xb0000000)' },
-            { type: 'output', content: '[    0.040000] PCI: MMCONFIG at [mem 0xb0000000-0xbfffffff] reserved in E820' },
-            { type: 'output', content: '[    0.040000] PCI: Using configuration type 1 for base access' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.050000] workingset: timestamp_bits=36 max_order=18 bucket_order=0' },
-            { type: 'output', content: '[    0.050000] zbud: loaded' },
-            { type: 'output', content: '[    0.050000] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 243)' },
-            { type: 'output', content: '[    0.050000] io scheduler mq-deadline registered' },
-            { type: 'output', content: '[    0.050000] io scheduler kyber registered' },
-            { type: 'output', content: '[    0.050000] io scheduler bfq registered' },
-            { type: 'output', content: '[    0.050000] shpchp: Standard Hot Plug PCI Controller Driver version: 0.4' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.060000] Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled' },
-            { type: 'output', content: '[    0.060000] 00:05: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A' },
-            { type: 'output', content: '[    0.060000] Non-volatile memory driver v1.3' },
-            { type: 'output', content: '[    0.060000] Linux agpgart interface v0.103' },
-            { type: 'output', content: '[    0.060000] AMD-Vi: AMD IOMMUv2 functionality not available on this system - This is not a bug.' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.070000] loop: module loaded' },
-            { type: 'output', content: '[    0.070000] virtio_blk virtio1: [vda] 20971520 512-byte logical blocks (10.7 GB/10.0 GiB)' },
-            { type: 'output', content: '[    0.070000] virtio_blk virtio1: [vda] 20971520 512-byte logical blocks (10.7 GB/10.0 GiB)' },
-            { type: 'output', content: '[    0.070000] vda: vda1' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '[    0.080000] Freeing unused kernel image (initmem) memory: 2408K' },
-            { type: 'output', content: '[    0.080000] Write protecting the kernel read-only data: 22528k' },
-            { type: 'output', content: '[    0.080000] Freeing unused kernel image (text/rodata gap) memory: 2036K' },
-            { type: 'output', content: '[    0.080000] Freeing unused kernel image (rodata/data gap) memory: 1388K' },
-            { type: 'output', content: '[    0.080000] Run /init as init process' },
-            { type: 'output', content: '[    0.080000]   with arguments:' },
-            { type: 'output', content: '[    0.080000]     /init' },
-            { type: 'output', content: '[    0.080000]   with environment:' },
-            { type: 'output', content: '[    0.080000]     HOME=/' },
-            { type: 'output', content: '[    0.080000]     TERM=linux' },
-            { type: 'output', content: '[    0.080000]     BOOT_IMAGE=/boot/vmlinuz-5.15.0-91-generic' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Loading, please wait...' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Begin: Loading essential drivers ... [    0.09] done.' },
-            { type: 'output', content: 'Begin: Running /scripts/init-premount ... [    0.09] done.' },
-            { type: 'output', content: 'Begin: Mounting root file system ... Begin: Running /scripts/local-top ... [    0.09] done.' },
-            { type: 'output', content: 'Begin: Running /scripts/local-premount ... [    0.09] done.' },
-            { type: 'output', content: 'Begin: Will now check root file system ... fsck from util-linux 2.37.2' },
-            { type: 'output', content: '[/sbin/fsck.ext4 (1) -- /] fsck.ext4 -a -C0 /dev/vda1' },
-            { type: 'output', content: '/dev/vda1: clean, 2345/65536 files, 12345/262144 blocks' },
-            { type: 'output', content: '[    0.10] done.' },
-            { type: 'output', content: '[    0.11] done.' },
-            { type: 'output', content: 'Begin: Running /scripts/local-bottom ... [    0.11] done.' },
-            { type: 'output', content: 'Begin: Running /scripts/init-bottom ... [    0.11] done.' },
-            { type: 'output', content: '' }
-          ]);
-        }, 100);
-
-        // Show more boot messages after another delay
-        setTimeout(() => {
-          setLines(prev => [...prev,
-            { type: 'output', content: 'Welcome to Linux Sim!' },
-            { type: 'output', content: ' * Documentation:  https://help.ubuntu.com' },
-            { type: 'output', content: ' * Management:     https://landscape.canonical.com' },
-            { type: 'output', content: ' * Support:        https://ubuntu.com/advantage' },
-            { type: 'output', content: '' },
-            { type: 'output', content: ' System information as of ' + new Date().toLocaleString() },
-            { type: 'output', content: '' },
-            { type: 'output', content: ' System load:  0.0               Processes:             1' },
-            { type: 'output', content: ' Usage of /:   10.0% of 9.78GB    Users logged in:       0' },
-            { type: 'output', content: ' Memory usage: 15%               IPv4 address for eth0: 10.0.2.15' },
-            { type: 'output', content: ' Swap usage:   0%' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '0 updates can be applied immediately.' },
-            { type: 'output', content: '0 of these updates are standard security updates.' },
-            { type: 'output', content: 'To see these additional updates run: apt list --upgradable' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'The programs included with the Ubuntu system are free software;' },
-            { type: 'output', content: 'the exact distribution terms for each program are described in the' },
-            { type: 'output', content: 'individual files in /usr/share/doc/*/copyright.' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by' },
-            { type: 'output', content: 'applicable law.' },
-            { type: 'output', content: '' }
-          ]);
-        }, 2000);
-
-        // Final boot completion
-        setTimeout(() => {
-          setLines([
-            { type: 'output', content: 'Linux Sim ' + (setupData?.computerName || 'linux-sim') + ' tty1' },
-            { type: 'output', content: '' },
-            { type: 'output', content: (setupData?.computerName || 'linux-sim') + ' login: ' },
-          ]);
-          // Reset to initial state - user would need to login again
-          setCommandHistory([]);
-          setCurrentInput('');
-        }, 4000);
-
-        return; // Don't add the reboot command to history
+        }
+        return; // Don't process further since we're using password prompts
       }
 
       case 'whoami': {
@@ -753,7 +527,8 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         }
 
         if (fs.changeDirectory(targetPath)) {
-          // Directory changed successfully, prompt will update
+          // Directory changed successfully, update prompt
+          setCurrentPrompt(`${currentUser.name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);
         } else {
           error = `cd: ${path}: No such file or directory`;
         }
@@ -770,8 +545,15 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         } else {
           const failedDirs: string[] = [];
           args.forEach(dir => {
-            if (!fs.createNewDirectory(dir)) {
-              failedDirs.push(dir);
+            // Handle ~ expansion
+            let expandedDir = dir;
+            if (dir === '~' || dir.startsWith('~/')) {
+              const home = fs.getCurrentUser().home;
+              expandedDir = dir === '~' ? home : home + dir.substring(1);
+            }
+
+            if (!fs.createNewDirectory(expandedDir)) {
+              failedDirs.push(dir); // Use original dir name in error
             }
           });
           if (failedDirs.length > 0) {
@@ -804,8 +586,15 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         } else {
           const failedFiles: string[] = [];
           args.forEach(file => {
-            if (!fs.createNewFile(file)) {
-              failedFiles.push(file);
+            // Handle ~ expansion
+            let expandedFile = file;
+            if (file === '~' || file.startsWith('~/')) {
+              const home = fs.getCurrentUser().home;
+              expandedFile = file === '~' ? home : home + file.substring(1);
+            }
+
+            if (!fs.createNewFile(expandedFile)) {
+              failedFiles.push(file); // Use original file name in error
             }
           });
           if (failedFiles.length > 0) {
@@ -849,7 +638,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
           });
 
           if (failedFiles.length > 0) {
-            error = `cat: ${failedFiles[0]}: No such file or directory`;
+            error = `cat: ${failedFiles[0]}': No such file or directory`;
           } else {
             output = contents.join('\n');
           }
@@ -944,6 +733,255 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         break;
       }
 
+      case 'man': {
+        if (args.length === 0) {
+          error = 'What manual page do you want?\nUsage: man <command>';
+        } else {
+          const command = args[0];
+          const manPagePath = `/usr/share/man/man1/${command}.1`;
+          const content = fs.readFile(manPagePath);
+
+          if (content !== null) {
+            output = content;
+          } else {
+            error = `man: No manual entry for ${command}\nTry 'help' to see available commands.`;
+          }
+        }
+        break;
+      }
+
+      case 'nano': {
+        if (args.length === 0) {
+          error = 'nano: missing file operand\nUsage: nano <file>';
+        } else {
+          const filePath = args[0];
+          const fullPath = fs.getAbsolutePath(filePath);
+          const content = fs.readFile(fullPath) || '';
+          onOpenEditor(fullPath, content);
+          return; // Don't add any lines to terminal when opening editor
+        }
+        break;
+      }
+
+      case 'sudo': {
+        if (args.length === 0) {
+          error = 'sudo: missing command\nUsage: sudo <command>';
+          break;
+        }
+
+        const originalUser = fs.getCurrentUser();
+        const rootUser = fs.getUsers().get('root');
+        if (!rootUser) {
+          error = 'sudo: root user not found';
+          break;
+        }
+
+        // Prompt for password
+        promptForPassword(`[sudo] password for ${originalUser.name}: `, (password) => {
+          if (fs.authenticateUser('root', password)) {
+            // Switch to root temporarily
+            fs.switchUser(rootUser);
+
+            // Execute the command as root
+            const sudoCommand = args.join(' ');
+            executeCommand(sudoCommand);
+
+            // Switch back to original user
+            fs.switchUser(originalUser);
+          } else {
+            setLines(prev => [...prev, { type: 'error', content: 'sudo: authentication failure' }]);
+          }
+          // Update prompt after user switch
+          setCurrentUser(fs.getCurrentUser());
+          setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);;
+        });
+        return; // Don't add command line to output when prompting for password
+      }
+
+      case 'su': {
+        const targetUserName = args[0] || 'root';
+        const targetUser = fs.getUsers().get(targetUserName);
+
+        if (!targetUser) {
+          error = `su: user '${targetUserName}' does not exist`;
+          break;
+        }
+
+        if (targetUser.uid === fs.getCurrentUser().uid) {
+          // Already this user
+          break;
+        }
+
+        // Prompt for password
+        promptForPassword(`Password for ${targetUserName}: `, (password) => {
+          if (fs.authenticateUser(targetUserName, password)) {
+            fs.switchUser(targetUser);
+            setLines(prev => [...prev, { type: 'output', content: `Switched to user ${targetUserName}` }]);
+          } else {
+            setLines(prev => [...prev, { type: 'error', content: 'su: Authentication failure' }]);
+          }
+          // Update prompt after user switch
+          setCurrentUser(fs.getCurrentUser());
+          setCurrentPrompt(`${fs.getCurrentUser().name}@${setupData?.computerName || 'linux-sim'}:${fs.getWorkingDirectory()}$ `);
+        });
+        return; // Don't add command line to output when prompting for password
+      }
+
+      case 'reboot': {
+        setIsRebooting(true);
+        // Clear any current input
+        setCurrentInput('');
+
+        // Show initial reboot message
+        setLines(prev => [...prev,
+          { type: 'input', content: command, commandPrompt: currentPrompt },
+          { type: 'output', content: 'System is going down for reboot...' }
+        ]);
+
+        // Simulate shutdown sequence with realistic delays
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped target Multi-User System.' }]);
+        }, 300);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped target Graphical Interface.' }]);
+        }, 600);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped OpenSSH Daemon.' }]);
+        }, 900);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped Apache HTTP Server.' }]);
+        }, 1200);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped MySQL Database Server.' }]);
+        }, 1500);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped target Network.' }]);
+        }, 1800);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped target Timers.' }]);
+        }, 2100);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: '[  OK  ] Stopped target Basic System.' }]);
+        }, 2400);
+
+        setTimeout(() => {
+          setLines(prev => [...prev, { type: 'output', content: 'Rebooting...' }]);
+        }, 2700);
+
+        // Clear screen and show BIOS boot sequence
+        setTimeout(() => {
+          setLines([
+            { type: 'output', content: '' },
+            { type: 'output', content: 'BIOS Information' },
+            { type: 'output', content: 'Vendor: Linux Sim BIOS' },
+            { type: 'output', content: 'Version: 1.0' },
+            { type: 'output', content: 'Release Date: ' + new Date().toISOString().split('T')[0] },
+            { type: 'output', content: '' }
+          ]);
+        }, 3200);
+
+        // Show more boot messages
+        setTimeout(() => {
+          setLines(prev => [...prev,
+            { type: 'output', content: 'CPU: Linux Sim Processor (1 cores, 1 threads)' },
+            { type: 'output', content: 'Memory: 512 MB' },
+            { type: 'output', content: 'Memory Test: Passed' },
+            { type: 'output', content: '' },
+            { type: 'output', content: 'Loading Linux 5.15.0-91-generic...' },
+            { type: 'output', content: 'Loading initial ramdisk...' }
+          ]);
+        }, 3600);
+
+        // Show kernel messages
+        setTimeout(() => {
+          setLines(prev => [...prev,
+            { type: 'output', content: '' },
+            { type: 'output', content: '[    0.000000] Linux version 5.15.0-91-generic (buildd@lcy02-amd64-001) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:33 UTC 2023 (Ubuntu 5.15.0-91.101-generic 5.15.122)' },
+            { type: 'output', content: '[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-5.15.0-91-generic root=UUID=xxxx ro quiet splash' },
+            { type: 'output', content: '[    0.000000] KERNEL supported cpus:' },
+            { type: 'output', content: '[    0.000000]   Intel GenuineIntel' },
+            { type: 'output', content: '[    0.000000]   AMD AuthenticAMD' },
+            { type: 'output', content: '[    0.000000] x86/fpu: Supporting XSAVE feature 0x001: \'x87 floating point registers\'' },
+            { type: 'output', content: '[    0.000000] BIOS-provided physical RAM map:' },
+            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable' },
+            { type: 'output', content: '[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000001fffffff] usable' },
+            { type: 'output', content: '[    0.010000] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)' },
+            { type: 'output', content: '[    0.020000] CPU: Physical Processor ID: 0' },
+            { type: 'output', content: '[    0.030000] devtmpfs: initialized' },
+            { type: 'output', content: '[    0.040000] NET: Registered protocol family 16' }
+          ]);
+        }, 4000);
+
+        // Show service startup messages
+        setTimeout(() => {
+          setLines(prev => [...prev,
+            { type: 'output', content: '' },
+            { type: 'output', content: 'Loading, please wait...' },
+            { type: 'output', content: '' },
+            { type: 'output', content: 'Begin: Loading essential drivers ... [    0.09] done.' },
+            { type: 'output', content: 'Begin: Running /scripts/init-premount ... [    0.09] done.' },
+            { type: 'output', content: 'Begin: Mounting root file system ... [    0.10] done.' },
+            { type: 'output', content: 'Begin: Running /scripts/local-bottom ... [    0.10] done.' },
+            { type: 'output', content: 'Begin: Running /scripts/init-bottom ... [    0.10] done.' },
+            { type: 'output', content: '' },
+            { type: 'output', content: '[    1.234567] systemd[1]: systemd 249.11-0ubuntu3.9 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE -BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTEMPTER +SYSTEMD_GROUP +SYSTEMD_RESOLVE +SYSTEMD_CREDS +SYSTEMD_HOME +SYSTEMD_XZ -GNOME_KEYRING)' },
+            { type: 'output', content: '[    1.234567] systemd[1]: Detected virtualization container.' },
+            { type: 'output', content: '[    1.234567] systemd[1]: Detected architecture x86-64.' },
+            { type: 'output', content: '[    1.234567] systemd[1]: Running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE -BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTEMPTER +SYSTEMD_GROUP +SYSTEMD_RESOLVE +SYSTEMD_CREDS +SYSTEMD_HOME +SYSTEMD_XZ -GNOME_KEYRING)' },
+            { type: 'output', content: '[    1.345678] systemd[1]: No hostname configured.' },
+            { type: 'output', content: '[    1.345678] systemd[1]: Set hostname to <linux-sim>.' }
+          ]);
+        }, 4800);
+
+        // Show welcome message and login prompt
+        setTimeout(() => {
+          setLines(prev => [...prev,
+            { type: 'output', content: '' },
+            { type: 'output', content: 'Welcome to Linux Sim!' },
+            { type: 'output', content: ' * Documentation:  https://help.ubuntu.com' },
+            { type: 'output', content: ' * Management:     https://landscape.canonical.com' },
+            { type: 'output', content: ' * Support:        https://ubuntu.com/advantage' },
+            { type: 'output', content: '' },
+            { type: 'output', content: ' System information as of ' + new Date().toLocaleString() },
+            { type: 'output', content: '' },
+            { type: 'output', content: ' System load:  0.0               Processes:             1' },
+            { type: 'output', content: ' Usage of /:   10.0% of 9.78GB    Users logged in:       0' },
+            { type: 'output', content: ' Memory usage: 15%               IPv4 address for eth0: 10.0.2.15' },
+            { type: 'output', content: ' Swap usage:   0%' },
+            { type: 'output', content: '' },
+            { type: 'output', content: '0 updates can be applied immediately.' },
+            { type: 'output', content: '0 of these updates are standard security updates.' },
+            { type: 'output', content: 'To see these additional updates run: apt list --upgradable' },
+            { type: 'output', content: '' },
+            { type: 'output', content: 'The programs included with the Ubuntu system are free software;' },
+            { type: 'output', content: 'the exact distribution terms for each program are described in the' },
+            { type: 'output', content: 'individual files in /usr/share/doc/*/copyright.' },
+            { type: 'output', content: '' },
+            { type: 'output', content: 'Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by' },
+            { type: 'output', content: 'applicable law.' },
+            { type: 'output', content: '' },
+            { type: 'output', content: 'Linux Sim ' + (setupData?.computerName || 'linux-sim') + ' tty1' },
+            { type: 'output', content: '' },
+            { type: 'output', content: (setupData?.computerName || 'linux-sim') + ' login: ' }
+          ]);
+
+          // Reset rebooting state and allow input again
+          setIsRebooting(false);
+          // Reset to initial state - user would need to login again
+          setCommandHistory([]);
+          setCurrentInput('');
+        }, 6000);
+
+        return; // Don't add the reboot command to history
+      }
+
       case 'clear':
         setLines([]);
         return; // Don't add any lines
@@ -952,27 +990,74 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         error = `${cmd}: command not found`;
     }
 
-    // Add the command line
-    setLines(prev => [...prev, { type: 'input', content: command, commandPrompt: currentPrompt }]);
+    // Prepare lines to add
+    const newLines: TerminalLine[] = [];
 
-    // Add output if any
-    if (output) {
-      setLines(prev => [...prev, { type: 'output', content: output }]);
+    // Always add the command line first
+    newLines.push({ type: 'input', content: command, commandPrompt: currentPrompt });
+
+    // Handle output redirection
+    if (output && redirectOutput) {
+      const redirectPath = fs.getAbsolutePath(redirectOutput);
+      const existingFile = fs.getNode(redirectPath);
+
+      if (existingFile && existingFile.type === 'directory') {
+        error = `bash: ${redirectOutput}: Is a directory`;
+      } else {
+        try {
+          // Create or update the file with the output
+          if (existingFile) {
+            // If appending, append to existing content
+            if (appendOutput) {
+              const existingContent = fs.readFile(redirectPath) || '';
+              fs.writeFile(redirectPath, existingContent + output);
+            } else {
+              fs.writeFile(redirectPath, output);
+            }
+          } else {
+            // Create new file
+            fs.createNewFile(redirectPath);
+            fs.writeFile(redirectPath, output);
+          }
+        } catch (e) {
+          error = `bash: ${redirectOutput}: Permission denied`;
+        }
+      }
+    } else if (output) {
+      // Normal output display
+      newLines.push({ type: 'output', content: output });
     }
 
     // Add error if any
     if (error) {
-      setLines(prev => [...prev, { type: 'error', content: error }]);
+      newLines.push({ type: 'error', content: error });
     }
 
-    // Update prompt after directory changes
-    setCurrentPrompt(`${setupData?.playerName?.toLowerCase() || 'user'}@${setupData?.computerName || 'linux-sim'}:${fs.getAbsolutePath()}$ `);
+    // Add all lines at once to ensure correct order
+    setLines(prev => [...prev, ...newLines]);
+
 
     // Save filesystem state after each command
     fs.saveToLocalStorage();
   };
 
+  const getCommonPrefix = (strings: string[]): string => {
+    if (strings.length === 0) return '';
+    if (strings.length === 1) return strings[0];
+
+    let prefix: string = strings[0];
+    for (let i = 1; i < strings.length; i++) {
+      while (strings[i].indexOf(prefix) !== 0) {
+        prefix = prefix.substring(0, prefix.length - 1);
+        if (prefix === '') return '';
+      }
+    }
+    return prefix;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isRebooting) return; // Ignore input during reboot
+
     if (e.key === 'Enter') {
       executeCommand(currentInput);
       setCurrentInput('');
@@ -1007,14 +1092,17 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     const currentPart = parts[parts.length - 1];
     const prevParts = parts.slice(0, -1);
 
-    // If we're at the beginning (command completion)
-    if (parts.length === 1 && !input.includes(' ')) {
-      const completions = getCommandCompletions(currentPart);
+    // Determine if this is command completion or path completion
+    const isPathCompletion = currentPart.includes('/') || currentPart.startsWith('.');
+
+    if (!isPathCompletion && parts.length === 1) {
+      // Command completion
+      const completions: string[] = getCommandCompletions(currentPart);
       if (completions.length === 1) {
         setCurrentInput(completions[0]);
       } else if (completions.length > 1) {
         // Show possible completions
-        const commonPrefix = getCommonPrefix(completions);
+        const commonPrefix: string = getCommonPrefix(completions);
         if (commonPrefix.length > currentPart.length) {
           setCurrentInput(commonPrefix);
         } else {
@@ -1024,13 +1112,13 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
     } else {
       // Path completion
-      const completions = getPathCompletions(currentPart);
+      const completions: string[] = getPathCompletions(currentPart);
       if (completions.length === 1) {
         const completedPath = completions[0];
         const newInput = [...prevParts, completedPath].join(' ');
         setCurrentInput(newInput);
       } else if (completions.length > 1) {
-        const commonPrefix = getCommonPrefix(completions);
+        const commonPrefix: string = getCommonPrefix(completions);
         if (commonPrefix.length > currentPart.length) {
           const newInput = [...prevParts, commonPrefix].join(' ');
           setCurrentInput(newInput);
@@ -1046,7 +1134,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     const allCommands = [
       'help', 'man', 'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm',
       'cat', 'nano', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'save', 'reset', 'debug', 'clear', 'reboot'
+      'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
     ];
 
     return allCommands.filter(cmd => cmd.startsWith(prefix));
@@ -1059,12 +1147,12 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
 
     if (prefix.includes('/')) {
       const lastSlashIndex = prefix.lastIndexOf('/');
-      basePath = prefix.substring(0, lastSlashIndex);
+      basePath = prefix.substring(0, lastSlashIndex) || '/'; // Ensure at least '/' for absolute paths
       searchPrefix = prefix.substring(lastSlashIndex + 1);
     }
 
     // Get the directory to search in
-    const searchDir = basePath ? basePath : '.';
+    const searchDir = basePath || '.';
     const files = fs.listDirectory(searchDir, true);
 
     // Filter by prefix
@@ -1073,7 +1161,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       .filter(name => name.startsWith(searchPrefix));
 
     // Add path prefix back
-    const fullBasePath = basePath ? (basePath === '/' ? '/' : basePath + '/') : '';
+    const fullBasePath = basePath && basePath !== '.' ? (basePath === '/' ? '/' : basePath + '/') : '';
     return matches.map(name => {
       const file = files.find(f => f.name === name);
       const isDir = file?.type === 'directory';
@@ -1084,20 +1172,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         return fullBasePath + name;
       }
     });
-  };
-
-  const getCommonPrefix = (strings: string[]): string => {
-    if (strings.length === 0) return '';
-    if (strings.length === 1) return strings[0];
-
-    let prefix = strings[0];
-    for (let i = 1; i < strings.length; i++) {
-      while (strings[i].indexOf(prefix) !== 0) {
-        prefix = prefix.substring(0, prefix.length - 1);
-        if (prefix === '') return '';
-      }
-    }
-    return prefix;
   };
 
   const promptForPassword = (promptText: string, callback: (password: string) => void) => {
@@ -1111,11 +1185,6 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [lines]);
-
-  useEffect(() => {
-    // Initialize prompt based on filesystem's current directory
-    setCurrentPrompt(`user@linux-sim:${fs.getWorkingDirectory()}$ `);
-  }, [fs]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -1145,22 +1214,29 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         ))}
 
         {/* Current input line */}
-        <div className="flex">
-          <span className="text-green-400 mr-2">
-            {awaitingPassword ? passwordPrompt : currentPrompt}
-          </span>
-          <input
-            ref={inputRef}
-            type={awaitingPassword ? "password" : "text"}
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent border-none outline-none text-white caret-green-400"
-            autoFocus
-            disabled={!fs}
-            placeholder={awaitingPassword ? "" : ""}
-          />
-        </div>
+        {!isRebooting && (
+          <div className="flex">
+            <span className="text-green-400 mr-2">
+              {awaitingPassword ? passwordPrompt : currentPrompt}
+            </span>
+            <input
+              ref={inputRef}
+              type={awaitingPassword ? "password" : "text"}
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-1 bg-transparent border-none outline-none text-white caret-green-400"
+              autoFocus
+              disabled={!fs}
+              placeholder={awaitingPassword ? "" : ""}
+            />
+          </div>
+        )}
+        {isRebooting && (
+          <div className="text-green-400 animate-pulse">
+            System rebooting... Please wait.
+          </div>
+        )}
       </div>
     </div>
   );
