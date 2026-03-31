@@ -38,3 +38,8 @@
     - adduser and userdel added
         *needs passwd
     - ***ADDRESSING NEWLY ADDED USER PASSWORD PRONLEM***
+1.5 rev & imp
+    - Addressed password problem.
+    - ignored browser spellcheck
+    - fixed autocomplete issue
+    
