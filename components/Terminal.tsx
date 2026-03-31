@@ -400,7 +400,34 @@ Interactive Examples:
       }
 
       case 'adduser': {
-        if (args.length === 0) {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `adduser - add a user to the system
+
+SYNOPSIS
+        adduser [OPTIONS] username
+
+DESCRIPTION
+        adduser creates a new user account. It will prompt for a password
+        during the creation process. The user will be assigned the next
+        available UID starting from 1000.
+
+        A home directory /home/username will be created, and the user will
+        be added to the system.
+
+        This command must be run as root.
+
+OPTIONS
+        -h, --help
+                Show this help message and exit.
+
+EXAMPLES
+        sudo adduser john
+                Create a user named john and prompt for password.
+
+SEE ALSO
+        userdel(8), usermod(8)
+`;
+        } else if (args.length === 0) {
           error = 'adduser: missing operand\nUsage: adduser <username>';
           break;
         }
@@ -469,7 +496,32 @@ Interactive Examples:
       }
 
       case 'userdel': {
-        if (args.length === 0) {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `userdel - delete a user account and related files
+
+SYNOPSIS
+        userdel [OPTIONS] username
+
+DESCRIPTION
+        userdel deletes a user account, the user's home directory, and all
+        related files.
+
+        The userdel command must be run as root.
+
+        It will refuse to delete the currently logged-in user.
+
+OPTIONS
+        -h, --help
+                Show this help message and exit.
+
+EXAMPLES
+        sudo userdel john
+                Delete the user john and their home directory.
+
+SEE ALSO
+        adduser(8), usermod(8)
+`;
+        } else if (args.length === 0) {
           error = 'userdel: missing operand\nUsage: userdel <username>';
           break;
         }
@@ -1013,7 +1065,40 @@ Examples:
       }
 
       case 'nano': {
-        if (args.length === 0) {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `nano - Nano's ANOther editor, an enhanced free Pico clone
+
+SYNOPSIS
+        nano [OPTIONS] [[+LINE[,COLUMN]] FILE]...
+
+DESCRIPTION
+        nano is a small and friendly editor. It copies the look and feel of
+        Pico, but is free software, and implements several features that Pico
+        lacks.
+
+OPTIONS
+        -h, --help
+                Show this help text and exit.
+
+        +LINE[,COLUMN]
+                Start at line number LINE, column number COLUMN (column
+                numbers start at 1). If COLUMN is not specified, start at
+                the beginning of the line.
+
+EXAMPLES
+        nano
+                Start nano with an empty buffer.
+
+        nano /etc/profile
+                Edit the file /etc/profile.
+
+        nano +10,5 /etc/profile
+                Edit the file /etc/profile, starting at line 10, column 5.
+
+SEE ALSO
+        pico(1), vi(1), emacs(1)
+`;
+        } else if (args.length === 0) {
           error = 'nano: missing file operand\nUsage: nano <file>';
         } else {
           const filePath = args[0];
