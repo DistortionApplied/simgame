@@ -1447,6 +1447,35 @@ SEE ALSO
 `);
         break;
 
+      case 'reboot':
+        this.createFile('/usr/share/man/man1/reboot.1', `REBOOT(1)                     User Commands                    REBOOT(1)
+
+NAME
+        reboot - reboot the system
+
+SYNOPSIS
+        reboot
+
+DESCRIPTION
+        Reboot the system by restarting the simulation from the boot screen.
+        This will reset the terminal session and return to the initial boot
+        sequence.
+
+        Note: This performs a soft reboot within the simulation.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        reboot
+                Reboot the system.
+
+SEE ALSO
+        clear(1), reset(1)
+`);
+        break;
+
       // Add other man pages as needed...
       default:
         // For commands without detailed man pages, create a simple one

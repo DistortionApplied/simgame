@@ -229,7 +229,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         break;
 
       case 'ls': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `ls: list directory contents
 
 Usage: ls [OPTION]... [FILE]...
@@ -343,7 +343,7 @@ Examples:
       }
 
       case 'chmod': {
-        if (args.length === 1 && args[0] === '--help') {
+        if (args.includes('--help') || args.includes('-h')) {
           output = `chmod: change file mode bits
 
 Usage: chmod OCTAL-MODE FILE
@@ -427,6 +427,7 @@ EXAMPLES
 SEE ALSO
         userdel(8), usermod(8)
 `;
+          break;
         } else if (args.length === 0) {
           error = 'adduser: missing operand\nUsage: adduser <username>';
           break;
@@ -521,6 +522,7 @@ EXAMPLES
 SEE ALSO
         adduser(8), usermod(8)
 `;
+          break;
         } else if (args.length === 0) {
           error = 'userdel: missing operand\nUsage: userdel <username>';
           break;
@@ -566,6 +568,36 @@ SEE ALSO
       }
 
       case 'passwd': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `passwd - change user password
+
+SYNOPSIS
+        passwd [OPTIONS] [USER]
+
+DESCRIPTION
+        passwd changes passwords for user accounts. A normal user may only
+        change the password for their own account, while the superuser may
+        change the password for any account.
+
+        passwd also aborts if running non-interactively.
+
+OPTIONS
+        -h, --help
+                Show this help message and exit.
+
+EXAMPLES
+        passwd
+                Change the current user's password.
+
+        sudo passwd john
+                Change john's password as root.
+
+SEE ALSO
+        adduser(8), userdel(8)
+`;
+          break;
+        }
+
         const targetUsername = args[0] || fs.getCurrentUser().name;
         const currentUser = fs.getCurrentUser();
         const targetUser = fs.getUsers().get(targetUsername);
@@ -647,7 +679,7 @@ SEE ALSO
       }
 
       case 'whoami': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `whoami: print effective userid
 
 Usage: whoami
@@ -665,6 +697,46 @@ Examples:
       }
 
       case 'id': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `id - print real and effective user and group IDs
+
+SYNOPSIS
+        id [OPTION]... [USER]
+
+DESCRIPTION
+        Print user and group information for the specified USER, or (when USER
+        omitted) for the current user.
+
+OPTIONS
+        -a     ignore, for compatibility with other versions
+        -Z, --context
+                print only the security context of the process
+        -g, --group
+                print only the effective group ID
+        -G, --groups
+                print all group IDs
+        -n, --name
+                print a name instead of a number, for -ugG
+        -r, --real
+                print the real ID instead of the effective ID, with -ugG
+        -u, --user
+                print only the effective user ID
+        -h, --help
+                display this help and exit
+
+EXAMPLES
+        id
+                Print information about the current user.
+
+        id username
+                Print information about the specified user.
+
+SEE ALSO
+        whoami(1), who(1), getuid(2), getgid(2)
+`;
+          break;
+        }
+
         if (args.length === 0) {
           // Show current user's ID info
           const user = fs.getCurrentUser();
@@ -684,7 +756,7 @@ Examples:
       }
 
       case 'cd': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `cd: change the working directory
 
 Usage: cd [DIRECTORY]
@@ -727,7 +799,7 @@ Examples:
       }
 
       case 'pwd':
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `pwd: print name of current/working directory
 
 Usage: pwd
@@ -743,7 +815,7 @@ Examples:
         break;
 
       case 'mkdir': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `mkdir: make directories
 
 Usage: mkdir DIRECTORY...
@@ -812,7 +884,7 @@ Examples:
       }
 
       case 'touch': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `touch: change file timestamps
 
 Usage: touch FILE...
@@ -850,7 +922,7 @@ Examples:
       }
 
       case 'rm': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `rm: remove files or directories
 
 Usage: rm FILE...
@@ -881,7 +953,7 @@ Examples:
       }
 
       case 'cat': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `cat: concatenate files and print on the standard output
 
 Usage: cat [FILE]...
@@ -919,7 +991,7 @@ Examples:
       }
 
       case 'cp': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `cp: copy files and directories
 
 Usage: cp SOURCE DEST
@@ -946,6 +1018,50 @@ Examples:
       }
 
       case 'mv': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `mv - move (rename) files
+
+SYNOPSIS
+        mv [OPTION]... [-T] SOURCE DEST
+        mv [OPTION]... SOURCE... DIRECTORY
+        mv [OPTION]... -t DIRECTORY SOURCE...
+
+DESCRIPTION
+        Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
+
+        Mandatory arguments to long options are mandatory for short options too.
+
+OPTIONS
+        -b     make a backup of each existing destination file
+        -f, --force
+                do not prompt before overwriting
+        -i, --interactive
+                prompt before overwrite
+        -n, --no-clobber
+                do not overwrite an existing file
+        -T, --no-target-directory
+                treat DEST as a normal file
+        -u, --update
+                move only when the SOURCE file is newer than the destination file or
+                when the destination file is missing
+        -v, --verbose
+                explain what is being done
+        -h, --help
+                display this help and exit
+
+EXAMPLES
+        mv file1.txt file2.txt
+                Rename file1.txt to file2.txt.
+
+        mv file.txt /tmp/
+                Move file.txt to the /tmp directory.
+
+SEE ALSO
+        cp(1), ln(1), rename(1)
+`;
+          break;
+        }
+
         if (args.length < 2) {
           error = 'mv: missing file operand\nUsage: mv <source> <destination>';
         } else {
@@ -958,7 +1074,7 @@ Examples:
       }
 
       case 'echo': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `echo: display a line of text
 
 Usage: echo [STRING]...
@@ -976,6 +1092,50 @@ Examples:
       }
 
       case 'grep': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `grep - print lines that match patterns
+
+SYNOPSIS
+        grep [OPTION...] PATTERNS [FILE...]
+
+DESCRIPTION
+        grep searches for PATTERNS in each FILE. PATTERNS is one or more
+        patterns separated by newline characters, and grep prints each line
+        that matches a pattern.
+
+        In this simulation, only basic string matching is supported.
+
+OPTIONS
+        -E, --extended-regexp
+                PATTERNS are extended regular expressions
+        -F, --fixed-strings
+                PATTERNS are strings
+        -G, --basic-regexp
+                PATTERNS are basic regular expressions
+        -i, --ignore-case
+                ignore case distinctions in patterns and input data
+        -n, --line-number
+                print line number with output lines
+        -r, --recursive
+                read all files under each directory, recursively
+        -v, --invert-match
+                select non-matching lines
+        -h, --help
+                display this help and exit
+
+EXAMPLES
+        grep pattern file.txt
+                Search for "pattern" in file.txt.
+
+        grep -i Pattern file.txt
+                Case-insensitive search.
+
+SEE ALSO
+        sed(1), awk(1)
+`;
+          break;
+        }
+
         if (args.length < 2) {
           error = 'grep: usage: grep <pattern> <file>';
         } else {
@@ -993,6 +1153,44 @@ Examples:
       }
 
       case 'find': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `find - search for files in a directory hierarchy
+
+SYNOPSIS
+        find [-H] [-L] [-P] [-D debugopts] [-Olevel] [starting-point...]
+              [expression]
+
+DESCRIPTION
+        find searches the directory tree rooted at each given starting-point
+        by evaluating the given expression from left to right, according to
+        the rules of precedence, until the outcome is known.
+
+        In this simulation, only basic -name searches are supported.
+
+EXPRESSIONS
+        -name pattern
+                Base of file name matches shell pattern pattern.
+
+        -type c
+                File is of type c: d directory, f regular file.
+
+OPTIONS
+        -h, --help
+                display this help and exit
+
+EXAMPLES
+        find /home -name "*.txt"
+                Find all .txt files in /home.
+
+        find . -name "test"
+                Find files named "test" in current directory.
+
+SEE ALSO
+        locate(1), xargs(1)
+`;
+          break;
+        }
+
         if (args.length < 3) {
           error = 'find: usage: find <path> -name <pattern>';
         } else {
@@ -1012,6 +1210,30 @@ Examples:
       }
 
       case 'save':
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `save - save filesystem state
+
+SYNOPSIS
+        save
+
+DESCRIPTION
+        Save the current filesystem state to localStorage for persistence
+        across browser sessions.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        save
+                Save the current filesystem state.
+
+SEE ALSO
+        reset(1)
+`;
+          break;
+        }
+
         if (fs.saveToLocalStorage()) {
           output = 'Filesystem state saved successfully.';
         } else {
@@ -1020,11 +1242,66 @@ Examples:
         break;
 
       case 'reset':
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `reset - reset filesystem to initial state
+
+SYNOPSIS
+        reset
+
+DESCRIPTION
+        Reset the filesystem to its initial state, removing all user-created
+        files and directories. This also clears the saved state.
+
+        Note: This only clears the filesystem data. To fully reset the
+        simulation, refresh the page.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        reset
+                Reset the filesystem to initial state.
+
+SEE ALSO
+        save(1)
+`;
+          break;
+        }
+
         fs.clearLocalStorage();
         output = 'Filesystem reset. Refresh the page to start fresh.';
         break;
 
       case 'debug': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `debug - show filesystem debug information
+
+SYNOPSIS
+        debug
+
+DESCRIPTION
+        Display debugging information about the current filesystem state,
+        including current user details, working directory, and counts of
+        users and groups in the system.
+
+        This command is useful for developers and administrators to inspect
+        the internal state of the simulation.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        debug
+                Show current filesystem debug information.
+
+SEE ALSO
+        whoami(1), pwd(1), id(1)
+`;
+          break;
+        }
+
         const user = fs.getCurrentUser();
         output = `Current user: ${user.name} (uid: ${user.uid}, gid: ${user.gid})\n` +
                 `Current directory: ${fs.getWorkingDirectory()}\n` +
@@ -1034,7 +1311,7 @@ Examples:
       }
 
       case 'man': {
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `man: an interface to the system reference manuals
 
 Usage: man [COMMAND]
@@ -1111,6 +1388,48 @@ SEE ALSO
       }
 
       case 'sudo': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `sudo - execute a command as another user
+
+SYNOPSIS
+        sudo [OPTIONS] command
+
+DESCRIPTION
+        sudo allows a permitted user to execute a command as the superuser
+        or another user, as specified by the security policy.
+
+        By default, sudo requires that users authenticate themselves with a
+        password (which is the root password in this simulation).
+
+        Once a user has been authenticated, a timestamp is updated and the
+        user may then use sudo without a password for a short period of time
+        (not implemented in this simulation).
+
+        The command is executed with the privileges of the target user (root
+        by default).
+
+OPTIONS
+        -u user    Run the command as the specified user instead of root.
+                    (Not fully implemented - always uses root)
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        sudo cat /etc/passwd
+                Read the passwd file as root.
+
+        sudo adduser john
+                Add a user as root.
+
+        sudo userdel john
+                Delete a user as root.
+
+SEE ALSO
+        su(1), whoami(1)
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'sudo: missing command\nUsage: sudo <command>';
           break;
@@ -1146,6 +1465,38 @@ SEE ALSO
       }
 
       case 'su': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `su - run a command with substitute user and group ID
+
+SYNOPSIS
+        su [OPTIONS] [username]
+
+DESCRIPTION
+        su allows commands to be run with a substitute user and group ID.
+
+        When called without arguments, su defaults to running an interactive
+        shell as root.
+
+        In this simulation, su switches the current user context to the
+        specified user (or root if none specified).
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        su
+                Switch to root user.
+
+        su john
+                Switch to user john.
+
+SEE ALSO
+        sudo(1), whoami(1)
+`;
+          break;
+        }
+
         const targetUserName = args[0] || 'root';
         const targetUser = fs.getUsers().get(targetUserName);
 
@@ -1175,6 +1526,33 @@ SEE ALSO
       }
 
       case 'reboot': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `reboot - reboot the system
+
+SYNOPSIS
+        reboot
+
+DESCRIPTION
+        Reboot the system by restarting the simulation from the boot screen.
+        This will reset the terminal session and return to the initial boot
+        sequence.
+
+        Note: This performs a soft reboot within the simulation.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        reboot
+                Reboot the system.
+
+SEE ALSO
+        clear(1), reset(1)
+`;
+          break;
+        }
+
         setIsRebooting(true);
         // Clear any current input
         setCurrentInput('');
@@ -1328,7 +1706,7 @@ SEE ALSO
       }
 
       case 'clear':
-        if (args.includes('--help')) {
+        if (args.includes('--help')|| args.includes('-h')) {
           output = `clear: clear the terminal screen
 
 Usage: clear
@@ -1420,7 +1798,20 @@ Examples:
     } else if (e.key === 'Tab') {
       e.preventDefault();
       handleTabCompletion();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (commandHistory.length > 0) {
+        const newIndex = historyIndex < 0 ? commandHistory.length - 1 : historyIndex - 1;
+        if (newIndex < 0) {
+          setHistoryIndex(-1);
+          setCurrentInput('');
+        } else {
+          setHistoryIndex(newIndex);
+          setCurrentInput(commandHistory[newIndex]);
+        }
+      }
     } else if (e.key === 'ArrowDown') {
+
       e.preventDefault();
       if (historyIndex >= 0) {
         const newIndex = historyIndex + 1;
