@@ -229,6 +229,28 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
         break;
 
       case 'ls': {
+        if (args.includes('--help')) {
+          output = `ls: list directory contents
+
+Usage: ls [OPTION]... [FILE]...
+
+List information about the FILEs (the current directory by default).
+
+Options:
+  -a, --all          do not ignore entries starting with .
+  -d, --directory    list directories themselves, not their contents
+  -l                 use a long listing format
+      --help         display this help and exit
+
+Examples:
+  ls                 List current directory
+  ls -l              Long listing format
+  ls -a              Show hidden files
+  ls -la             Show all files in long format
+`;
+          break;
+        }
+
         let showHidden = false;
         let longFormat = false;
         let directoryOnly = false;
@@ -321,15 +343,53 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'chmod': {
-        if (args.length < 2) {
-          error = 'chmod: missing operand\nUsage: chmod <mode> <file>';
+        if (args.length === 1 && args[0] === '--help') {
+          output = `chmod: change file mode bits
+
+Usage: chmod OCTAL-MODE FILE
+
+Change the mode of each FILE to the specified OCTAL-MODE.
+
+This game supports octal permissions only (e.g., 755, 644).
+
+Permission bits:
+  4 = read (r)
+  2 = write (w)
+  1 = execute (x)
+  0 = no permission
+
+Structure: Owner(3) Group(3) Others(3)
+
+ASCII Art:
+  ┌───┬───┬───┐
+  │ r │ w │ x │ Owner
+  ├───┼───┼───┤
+  │ r │ w │ x │ Group
+  ├───┼───┼───┤
+  │ r │ w │ x │ Others
+  └───┴───┴───┘
+
+Examples:
+  chmod 755 script.sh    - rwxr-xr-x (executable script)
+  chmod 644 document.txt - rw-r--r-- (readable document)
+  chmod 600 private.txt  - rw------- (private file)
+  chmod 777 public.txt   - rwxrwxrwx (world writable)
+
+Interactive Examples:
+  755: Full access for owner, read/execute for others (scripts)
+  644: Read/write for owner, read-only for others (files)
+  600: Private file, owner only (secrets)
+  400: Read-only for owner (logs)
+`;
+        } else if (args.length < 2) {
+          error = 'chmod: missing operand\nUsage: chmod <mode> <file>\nTry: chmod --help';
         } else {
           const [mode, filePath] = args;
           const fullPath = fs.getAbsolutePath(filePath);
 
           // Validate octal mode (3 or 4 digits)
           if (!/^[0-7]{3,4}$/.test(mode)) {
-            error = `chmod: invalid mode '${mode}'`;
+            error = `chmod: invalid mode '${mode}'\nTry: chmod --help`;
           } else if (!fs.changePermissions(fullPath, mode)) {
             error = `chmod: cannot access '${filePath}': No such file or directory`;
           } else {
@@ -535,6 +595,18 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'whoami': {
+        if (args.includes('--help')) {
+          output = `whoami: print effective userid
+
+Usage: whoami
+
+Print the user name associated with the current effective user ID.
+
+Examples:
+  whoami     Display current username
+`;
+          break;
+        }
         const user = fs.getCurrentUser();
         output = user.name;
         break;
@@ -560,6 +632,29 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'cd': {
+        if (args.includes('--help')) {
+          output = `cd: change the working directory
+
+Usage: cd [DIRECTORY]
+
+Change the current directory to DIRECTORY. The default DIRECTORY is the
+value of the HOME shell variable.
+
+Arguments:
+  DIRECTORY    The directory to change to
+  ~            Shortcut for home directory
+  ..           Parent directory
+  .            Current directory
+
+Examples:
+  cd /tmp      Change to /tmp directory
+  cd ..        Go up one directory level
+  cd           Go to home directory
+  cd ~/docs    Go to docs in home directory
+`;
+          break;
+        }
+
         const path = args[0] || '~';
 
         let targetPath = path;
@@ -580,10 +675,36 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'pwd':
+        if (args.includes('--help')) {
+          output = `pwd: print name of current/working directory
+
+Usage: pwd
+
+Print the full filename of the current working directory.
+
+Examples:
+  pwd         Display current directory path
+`;
+          break;
+        }
         output = fs.getWorkingDirectory();
         break;
 
       case 'mkdir': {
+        if (args.includes('--help')) {
+          output = `mkdir: make directories
+
+Usage: mkdir DIRECTORY...
+
+Create the DIRECTORY(ies), if they do not already exist.
+
+Examples:
+  mkdir newdir        Create a directory called newdir
+  mkdir dir1 dir2     Create multiple directories
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'mkdir: missing operand\nUsage: mkdir <directory>';
         } else {
@@ -608,6 +729,20 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'rmdir': {
+        if (args.includes('--help')) {
+          output = `rmdir: remove empty directories
+
+Usage: rmdir DIRECTORY...
+
+Remove the DIRECTORY(ies), if they are empty.
+
+Examples:
+  rmdir emptydir     Remove an empty directory
+  rmdir dir1 dir2    Remove multiple empty directories
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'rmdir: missing operand\nUsage: rmdir <directory>';
         } else {
@@ -625,6 +760,20 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'touch': {
+        if (args.includes('--help')) {
+          output = `touch: change file timestamps
+
+Usage: touch FILE...
+
+Update the access and modification times of each FILE to the current time.
+
+Examples:
+  touch file.txt      Create file.txt if it doesn't exist
+  touch file1 file2   Update timestamps for multiple files
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'touch: missing file operand';
         } else {
@@ -649,6 +798,20 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'rm': {
+        if (args.includes('--help')) {
+          output = `rm: remove files or directories
+
+Usage: rm FILE...
+
+Remove (unlink) the FILE(s).
+
+Examples:
+  rm file.txt      Remove a file
+  rm file1 file2   Remove multiple files
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'rm: missing operand';
         } else {
@@ -666,6 +829,20 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'cat': {
+        if (args.includes('--help')) {
+          output = `cat: concatenate files and print on the standard output
+
+Usage: cat [FILE]...
+
+Concatenate FILE(s) to standard output.
+
+Examples:
+  cat file.txt        Display contents of file.txt
+  cat file1 file2     Display contents of multiple files
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'cat: missing file operand';
         } else {
@@ -690,6 +867,21 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'cp': {
+        if (args.includes('--help')) {
+          output = `cp: copy files and directories
+
+Usage: cp SOURCE DEST
+  or:  cp SOURCE... DIRECTORY
+
+Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
+
+Examples:
+  cp file1 file2      Copy file1 to file2
+  cp file1 file2 dir  Copy file1 and file2 to dir/
+`;
+          break;
+        }
+
         if (args.length < 2) {
           error = 'cp: missing file operand\nUsage: cp <source> <destination>';
         } else {
@@ -714,6 +906,19 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'echo': {
+        if (args.includes('--help')) {
+          output = `echo: display a line of text
+
+Usage: echo [STRING]...
+
+Display the STRING(s), separated by single blank spaces.
+
+Examples:
+  echo hello world    Display "hello world"
+  echo "hello world"  Display "hello world" with quotes
+`;
+          break;
+        }
         output = args.join(' ');
         break;
       }
@@ -777,6 +982,20 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'man': {
+        if (args.includes('--help')) {
+          output = `man: an interface to the system reference manuals
+
+Usage: man [COMMAND]
+
+Display the manual page for COMMAND.
+
+Examples:
+  man ls      Display manual for ls command
+  man chmod   Display manual for chmod command
+`;
+          break;
+        }
+
         if (args.length === 0) {
           error = 'What manual page do you want?\nUsage: man <command>';
         } else {
@@ -1024,6 +1243,18 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
       }
 
       case 'clear':
+        if (args.includes('--help')) {
+          output = `clear: clear the terminal screen
+
+Usage: clear
+
+Clear the terminal screen.
+
+Examples:
+  clear       Clear the screen
+`;
+          break;
+        }
         setLines([]);
         return; // Don't add any lines
 

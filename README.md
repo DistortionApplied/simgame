@@ -42,4 +42,14 @@
     - Addressed password problem.
     - ignored browser spellcheck
     - fixed autocomplete issue
-    
+1.6 rev & imp
+    - revamped game start.
+        - changed to mimic booting
+        - added finctionality back to new login screen
+        - squashed bugs
+        - improved delete save system
+        - fixed bug allowing creation of used user names users used.
+    - Attempting to make chmod more understandable.
+        - added more info to man page and added a --help to chmod command.
+        * NEEDS MORE WORK
+    - Addressing --help pn all commands. got about half so far.

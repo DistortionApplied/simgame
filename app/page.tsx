@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Terminal from '../components/Terminal';
-import LoginScreen from '../components/LoginScreen';
+import BootScreen from '../components/BootScreen';
+import LoginPrompt from '../components/LoginPrompt';
 import SetupWizard from '../components/SetupWizard';
 import NanoEditor from '../components/NanoEditor';
 
@@ -14,7 +15,7 @@ interface GameSetup {
   createdAt: string;
 }
 
-type GameState = 'login' | 'setup' | 'playing' | 'loading' | 'editing';
+type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'loading' | 'editing';
 
 interface EditorState {
   filePath: string;
@@ -22,22 +23,12 @@ interface EditorState {
 }
 
 export default function Home() {
-  const [gameState, setGameState] = useState<GameState>('loading');
+  const [gameState, setGameState] = useState<GameState>('boot');
   const [setupData, setSetupData] = useState<GameSetup | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
 
   useEffect(() => {
-    // Check for existing game setup
-    const savedSetup = localStorage.getItem('linux-sim-setup');
-    if (savedSetup) {
-      try {
-        const parsed = JSON.parse(savedSetup);
-        setSetupData(parsed);
-      } catch (error) {
-        console.warn('Invalid saved setup data');
-      }
-    }
-    setGameState('login');
+    // No initial loading, start with boot
   }, []);
 
   const handleStartNewGame = () => {
@@ -54,19 +45,29 @@ export default function Home() {
       createdAt: new Date().toISOString()
     };
 
-    // Save setup data
-    localStorage.setItem('linux-sim-setup', JSON.stringify(completeSetup));
+    // Save setup data with username
+    const key = `linux-sim-setup-${data.playerName}`;
+    localStorage.setItem(key, JSON.stringify(completeSetup));
     setSetupData(completeSetup);
 
-    // Clear existing filesystem to start fresh
-    localStorage.removeItem('linux-sim-filesystem');
+    // Clear existing filesystem for this user
+    localStorage.removeItem(`linux-sim-filesystem-${data.playerName}`);
 
+    setGameState('playing');
+  };
+
+  const handleBootComplete = () => {
+    setGameState('login');
+  };
+
+  const handleLoginSuccess = (data: GameSetup) => {
+    setSetupData(data);
     setGameState('playing');
   };
 
   const handleBackToLogin = () => {
     setGameState('login');
-  };
+  }
 
   const handleDeleteExistingGame = () => {
     // Clear all saved game data
@@ -117,15 +118,12 @@ export default function Home() {
     );
   }
 
+  if (gameState === 'boot') {
+    return <BootScreen onBootComplete={handleBootComplete} />;
+  }
+
   if (gameState === 'login') {
-    return (
-      <LoginScreen
-        onStartNewGame={handleStartNewGame}
-        onLoadExistingGame={handleLoadExistingGame}
-        onDeleteExistingGame={handleDeleteExistingGame}
-        hasExistingGame={!!setupData}
-      />
-    );
+    return <LoginPrompt onLoginSuccess={handleLoginSuccess} onStartNewGame={handleStartNewGame} />;
   }
 
   if (gameState === 'setup') {

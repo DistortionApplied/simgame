@@ -64,13 +64,15 @@ export class FakeFileSystem {
   private currentUser!: User;
   private users: Map<string, User>;
   private groups: Map<string, Group>;
-  private readonly STORAGE_KEY = 'linux-sim-filesystem';
+  private STORAGE_KEY!: string;
+
   private setupData: GameSetup | null = null;
 
   constructor(setupData?: GameSetup | null) {
     this.setupData = setupData || null;
     this.users = new Map();
     this.groups = new Map();
+    this.STORAGE_KEY = `linux-sim-filesystem-${this.setupData?.playerName || 'user'}`;
 
     // Try to load from localStorage first
     if (!this.loadFromLocalStorage()) {
@@ -497,13 +499,11 @@ export class FakeFileSystem {
     const requiredManPages = [
       'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat', 'nano', 'sudo', 'su',
       'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'man', 'help', 'save', 'reset', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
+      'man', 'help', 'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
     ];
 
     for (const cmd of requiredManPages) {
-      if (!man1Dir.children!.has(`${cmd}.1`)) {
-        this.createIndividualManPage(cmd);
-      }
+      this.createIndividualManPage(cmd);
     }
   }
 
@@ -930,23 +930,38 @@ DESCRIPTION
         representation of changes to make, or an octal number representing the bit
         pattern for the new mode bits.
 
-MODES
-        Symbolic modes are accepted in the form [ugoa]*([-+=]([rwxXst]*|[ugo]))+ .
+        In this game, only octal modes are supported for simplicity.
 
-        The first character represents the users whose permissions are to be changed:
-        u (user), g (group), o (others), a (all).
+PERMISSIONS STRUCTURE
+        Permissions are represented as 3 or 4 octal digits:
+        - Owner permissions (first digit)
+        - Group permissions (second digit)
+        - Others permissions (third digit)
+        - Optional: Special permissions (fourth digit)
 
-        The operator + causes the selected file mode bits to be added to the existing
-        file mode bits of each file; - causes them to be removed; = causes them to be
-        added and causes unmentioned bits to be removed except that a directory's
-        unmentioned set user and group ID bits are not affected.
+        Each digit is the sum of:
+        4 = read (r)
+        2 = write (w)
+        1 = execute (x)
+
+        ASCII Art:
+          ┌───┬───┬───┐
+          │ r │ w │ x │ Owner
+          ├───┼───┼───┤
+          │ r │ w │ x │ Group
+          ├───┼───┼───┤
+          │ r │ w │ x │ Others
+          └───┴───┴───┘
 
 EXAMPLES
         chmod 755 file
-               Set file permissions to rwxr-xr-x.
+                Set file permissions to rwxr-xr-x (755 = 7+5+5).
 
-        chmod u+x file
-               Add execute permission for the user.
+        chmod 644 file
+                Set file permissions to rw-r--r-- (644 = 6+4+4).
+
+        chmod 600 file
+                Private file: rw------- (600 = 6+0+0).
 
 SEE ALSO
         chown(1), chgrp(1), chmod(2)
@@ -1278,56 +1293,157 @@ SEE ALSO
         break;
 
       case 'passwd':
-        this.createFile('/usr/share/man/man1/passwd.1', `PASSWD(1)                    User Commands                   PASSWD(1)
+        this.createFile('/usr/share/man/man1/passwd.1', `PASSWD(1)                    Linux Sim Commands               PASSWD(1)
 
 NAME
         passwd - change user password
 
 SYNOPSIS
-        passwd [OPTIONS] [USER]
+        passwd [USER]
 
 DESCRIPTION
         passwd changes passwords for user accounts. A normal user may only
         change the password for their own account, while the superuser may
         change the password for any account.
 
-        The user is first prompted for their old password, if one is present.
-        This password is then encrypted and compared against the stored
-        password. The user has only one chance to enter the correct password.
-        The superuser is permitted to bypass this step so that forgotten
-        passwords may be changed.
+        For users with existing passwords, you will be prompted for the current
+        password, then the new password, and to confirm it.
 
-        After the password has been entered, password aging information is
-        checked to see if the user is permitted to change the password at
-        this time. If not, passwd refuses to change the password and exits.
+        For new users without passwords, only the new password is required.
+
+        The superuser can change any user's password without knowing the old one.
 
 OPTIONS
-        -l, --lock
-                Lock the password of the named account. This option disables
-                a password by changing it to a value which matches no possible
-                encrypted value.
-
-        -u, --unlock
-                Unlock the password of the named account. This option re-enables
-                a password by changing the password back to its previous value.
-
-        -d, --delete
-                Delete a user's password (make it empty). This is a quick way
-                to disable a password for an account.
-
-        -e, --expire
-                Immediately expire an account's password. This in effect can
-                force a user to change their password at the user's next login.
+        None currently supported.
 
 EXAMPLES
         passwd
-                Change the password of the current user.
+                Change your own password.
 
-        passwd username
-                Change the password of the specified user (requires root).
+        sudo passwd john
+                Change john's password as root.
+`);
+        break;
+
+      case 'adduser':
+        this.createFile('/usr/share/man/man1/adduser.1', `ADDUSER(1)                   Linux Sim Commands               ADDUSER(1)
+
+NAME
+        adduser - add a user to the system
+
+SYNOPSIS
+        adduser username
+
+DESCRIPTION
+        adduser creates a new user account. It will prompt for a password
+        during the creation process. The user will be assigned the next
+        available UID starting from 1000.
+
+        A home directory /home/username will be created, and the user will
+        be added to the system.
+
+        This command must be run as root.
+
+OPTIONS
+        None currently supported.
+
+EXAMPLES
+        sudo adduser john
+                Create a user named john and prompt for password.
+`);
+        break;
+
+      case 'userdel':
+        this.createFile('/usr/share/man/man1/userdel.1', `USERDEL(1)                   Linux Sim Commands               USERDEL(1)
+
+NAME
+        userdel - delete a user account and related files
+
+SYNOPSIS
+        userdel username
+
+DESCRIPTION
+        userdel deletes a user account, the user's home directory, and all
+        related files.
+
+        The userdel command must be run as root.
+
+        It will refuse to delete the currently logged-in user.
+
+OPTIONS
+        None currently supported.
+
+EXAMPLES
+        sudo userdel john
+                Delete the user john and their home directory.
+`);
+        break;
+
+      case 'sudo':
+        this.createFile('/usr/share/man/man1/sudo.1', `SUDO(1)                       Linux Sim Commands                SUDO(1)
+
+NAME
+        sudo - execute a command as another user
+
+SYNOPSIS
+        sudo [OPTIONS] command
+
+DESCRIPTION
+        sudo allows a permitted user to execute a command as the superuser
+        or another user, as specified by the security policy.
+
+        By default, sudo requires that users authenticate themselves with a
+        password (which is the root password in this simulation).
+
+        Once a user has been authenticated, a timestamp is updated and the
+        user may then use sudo without a password for a short period of time
+        (not implemented in this simulation).
+
+        The command is executed with the privileges of the target user (root
+        by default).
+
+OPTIONS
+        -u user    Run the command as the specified user instead of root.
+                   (Not fully implemented - always uses root)
+
+EXAMPLES
+        sudo cat /etc/passwd
+                Read the passwd file as root.
+
+        sudo adduser john
+                Add a user as root.
+
+        sudo userdel john
+                Delete a user as root.
 
 SEE ALSO
-        chpasswd(8), passwd(5), shadow(5), usermod(8)
+        su(1), whoami(1)
+`);
+        break;
+
+      case 'debug':
+        this.createFile('/usr/share/man/man1/debug.1', `DEBUG(1)                      Linux Sim Commands               DEBUG(1)
+
+NAME
+        debug - show filesystem debug information
+
+SYNOPSIS
+        debug
+
+DESCRIPTION
+        Display debugging information about the current filesystem state,
+        including current user details, working directory, and counts of
+        users and groups in the system.
+
+        This command is useful for developers and administrators to inspect
+        the internal state of the simulation.
+
+EXAMPLES
+        debug
+                Show current filesystem debug information.
+
+SEE ALSO
+        whoami(1), pwd(1), id(1)
 `);
         break;
 

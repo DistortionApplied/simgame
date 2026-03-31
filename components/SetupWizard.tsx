@@ -22,6 +22,7 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
     rootPassword: '',
     userPassword: ''
   });
+  const [error, setError] = useState('');
 
   const steps = [
     { title: 'Player Name', description: 'Enter your name for this session' },
@@ -33,9 +34,26 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
 
   const updateSetupData = (field: keyof SetupData, value: string) => {
     setSetupData(prev => ({ ...prev, [field]: value }));
+    if (field === 'playerName') {
+      setError(''); // Clear error when user starts typing
+    }
   };
 
   const nextStep = () => {
+    if (currentStep === 0) {
+      // Validate player name doesn't already exist
+      const existingSetup = localStorage.getItem(`linux-sim-setup-${setupData.playerName}`);
+      if (existingSetup) {
+        setError('A user with this name already exists. Please choose a different name.');
+        return;
+      }
+      if (!setupData.playerName.trim()) {
+        setError('Player name cannot be empty.');
+        return;
+      }
+      setError('');
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -67,11 +85,16 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
                 autoFocus
               />
               <p className="text-gray-400 text-sm mt-2">
-                This will be used to identify you in the game.
-              </p>
-            </div>
-          </div>
-        );
+                 This will be used to identify you in the game.
+               </p>
+               {error && (
+                 <div className="text-red-400 text-sm mt-2">
+                   {error}
+                 </div>
+               )}
+             </div>
+           </div>
+         );
 
       case 1: // Computer Setup
         return (
@@ -170,7 +193,7 @@ export default function SetupWizard({ onComplete, onBack }: SetupWizardProps) {
 
   const canProceed = () => {
     switch (currentStep) {
-      case 0: return setupData.playerName.trim().length > 0;
+      case 0: return setupData.playerName.trim().length > 0 && !error;
       case 1: return setupData.computerName.trim().length > 0 && /^[a-zA-Z0-9_-]+$/.test(setupData.computerName);
       case 2: return setupData.rootPassword.length >= 4;
       case 3: return setupData.userPassword.length >= 4;
