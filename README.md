@@ -45,9 +45,12 @@
         - fixed bug allowing creation of used user names users used.
     - Attempting to make chmod more understandable.
         - added more info to man page and added a --help to chmod command.
-        * NEEDS MORE WORK
     - Addressing --help on all commands. got about half so far.
 1.7 rev & imp
     - --help or -h available on all commands.
     - made char creation backdoor for testing.
-    
+    1.7.5 - mid version push
+    - implemented apt
+    - more testing
+    - sorted out created user permissions.
+    1.7.6 - mid version push

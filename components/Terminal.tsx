@@ -62,7 +62,43 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   }, [fs, setupData]);
   const [awaitingPassword, setAwaitingPassword] = useState(false);
   const [passwordCallback, setPasswordCallback] = useState<((password: string) => void) | null>(null);
-  const [passwordPrompt, setPasswordPrompt] = useState('');
+
+  // Package interface
+  interface PackageInfo {
+    name: string;
+    version: string;
+    description: string;
+    maintainer: string;
+    size: string;
+    dependencies: string[];
+    provides: string[];
+  }
+
+  // Package database for apt simulation
+  const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
+    'nano': {
+      name: 'nano',
+      version: '6.2-1',
+      description: 'small, friendly text editor inspired by Pico',
+      maintainer: 'Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>',
+      size: '548 kB',
+      dependencies: [],
+      provides: ['editor']
+    }
+  };
+
+  // Helper function to check if a package is installed
+  const isPackageInstalled = (packageName: string): boolean => {
+    const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+    const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+    return !!installed[packageName];
+  };
+
+  // Helper function to get installed packages
+  const getInstalledPackages = () => {
+    const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+    return JSON.parse(localStorage.getItem(installedKey) || '{}');
+  };  const [passwordPrompt, setPasswordPrompt] = useState('');
   const [isRebooting, setIsRebooting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -387,13 +423,23 @@ Interactive Examples:
           const [mode, filePath] = args;
           const fullPath = fs.getAbsolutePath(filePath);
 
-          // Validate octal mode (3 or 4 digits)
-          if (!/^[0-7]{3,4}$/.test(mode)) {
-            error = `chmod: invalid mode '${mode}'\nTry: chmod --help`;
-          } else if (!fs.changePermissions(fullPath, mode)) {
+          // Check if file exists
+          const fileNode = fs.getNode(fullPath);
+          if (!fileNode) {
             error = `chmod: cannot access '${filePath}': No such file or directory`;
           } else {
-            // Success - no output needed
+            // Check if current user can change permissions (owner or root only)
+            const currentUser = fs.getCurrentUser();
+            if (fileNode.uid !== currentUser.uid && currentUser.uid !== 0) {
+              error = `chmod: ${filePath}: Operation not permitted`;
+            } else {
+              // Validate octal mode (3 or 4 digits)
+              if (!/^[0-7]{3,4}$/.test(mode)) {
+                error = `chmod: invalid mode '${mode}'\nTry: chmod --help`;
+              } else if (!fs.changePermissions(fullPath, mode)) {
+                error = `chmod: cannot access '${filePath}': No such file or directory`;
+              }
+            }
           }
         }
         break;
@@ -1375,6 +1421,8 @@ EXAMPLES
 SEE ALSO
         pico(1), vi(1), emacs(1)
 `;
+        } else if (!isPackageInstalled('nano')) {
+          error = 'nano: command not found\nTry: apt install nano';
         } else if (args.length === 0) {
           error = 'nano: missing file operand\nUsage: nano <file>';
         } else {
@@ -1383,6 +1431,270 @@ SEE ALSO
           const content = fs.readFile(fullPath) || '';
           onOpenEditor(fullPath, content);
           return; // Don't add any lines to terminal when opening editor
+        }
+        break;
+      }
+
+      case 'apt': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `apt - command-line package manager
+
+SYNOPSIS
+        apt [OPTIONS] COMMAND
+
+DESCRIPTION
+        apt provides a high-level command-line interface for the package management
+        system. It is intended as an end user interface and enables some options
+        better suited for interactive usage by default compared to more specialized
+        APT tools like apt-get(8) and apt-cache(8).
+
+COMMANDS
+        install    Install packages
+        remove     Remove packages
+        search     Search for packages
+        show       Show package details
+        list       List packages
+        update     Update package list
+        upgrade    Upgrade all packages
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        apt update
+                Update package list
+
+        apt install nano
+                Install nano text editor
+
+        apt search editor
+                Search for text editors
+
+SEE ALSO
+        apt-get(8), apt-cache(8)
+`;
+          break;
+        }
+
+        if (args.length === 0) {
+          error = 'apt: missing command\nTry: apt --help';
+          break;
+        }
+
+        const subcommand = args[0];
+        const subArgs = args.slice(1);
+
+        switch (subcommand) {
+          case 'update': {
+            // Simulate package list update
+            setLines(prev => [...prev,
+              { type: 'input', content: command, commandPrompt: currentPrompt },
+              { type: 'output', content: 'Get:1 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]' },
+              { type: 'output', content: 'Get:2 http://archive.ubuntu.com/ubuntu focal-updates InRelease [114 kB]' },
+              { type: 'output', content: 'Fetched 379 kB in 1s (379 kB/s)' },
+              { type: 'output', content: 'Reading package lists... Done' }
+            ]);
+            break;
+          }
+
+          case 'install': {
+            if (subArgs.length === 0) {
+              error = 'apt install: missing package name';
+              break;
+            }
+            const packageName = subArgs[0];
+            const pkg = AVAILABLE_PACKAGES[packageName];
+
+            if (!pkg) {
+              error = `E: Unable to locate package ${packageName}`;
+              break;
+            }
+
+            // Get installed packages from localStorage
+            const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+            const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+
+            if (installed[packageName]) {
+              output = `${packageName} is already the newest version (${pkg.version}).`;
+              break;
+            }
+
+            // Simulate installation
+            setLines(prev => [...prev,
+              { type: 'input', content: command, commandPrompt: currentPrompt },
+              { type: 'output', content: `Reading package lists... Done` },
+              { type: 'output', content: `Building dependency tree... Done` },
+              { type: 'output', content: `Reading state information... Done` },
+              { type: 'output', content: `The following NEW packages will be installed:` },
+              { type: 'output', content: `  ${packageName}` },
+              { type: 'output', content: `0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.` },
+              { type: 'output', content: `Need to get ${pkg.size} of archives.` },
+              { type: 'output', content: `After this operation, ${pkg.size} of additional disk space will be used.` },
+              { type: 'output', content: `Get:1 http://archive.ubuntu.com/ubuntu focal/universe ${packageName} ${pkg.version} [${pkg.size}]` },
+              { type: 'output', content: `Fetched ${pkg.size} in 1s (500 kB/s)` },
+              { type: 'output', content: `Selecting previously unselected package ${packageName}.` },
+              { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
+              { type: 'output', content: `Unpacking ${packageName} (${pkg.version}) ...` },
+              { type: 'output', content: `Setting up ${packageName} (${pkg.version}) ...` },
+              { type: 'output', content: '' }
+            ]);
+
+            // Mark as installed
+            installed[packageName] = { ...pkg, installedAt: new Date().toISOString() };
+            localStorage.setItem(installedKey, JSON.stringify(installed));
+
+            // Create some placeholder files for the package
+            fs.createNewDirectory(`/usr/share/${packageName}`);
+            fs.createNewFile(`/usr/share/${packageName}/version.txt`);
+            fs.writeFile(`/usr/share/${packageName}/version.txt`, pkg.version);
+            break;
+          }
+
+          case 'remove': {
+            if (subArgs.length === 0) {
+              error = 'apt remove: missing package name';
+              break;
+            }
+            const packageName = subArgs[0];
+
+            // Get installed packages
+            const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+            const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+
+            if (!installed[packageName]) {
+              error = `Package '${packageName}' is not installed, so not removed`;
+              break;
+            }
+
+            // Simulate removal
+            setLines(prev => [...prev,
+              { type: 'input', content: command, commandPrompt: currentPrompt },
+              { type: 'output', content: `Reading package lists... Done` },
+              { type: 'output', content: `Building dependency tree... Done` },
+              { type: 'output', content: `Reading state information... Done` },
+              { type: 'output', content: `The following packages will be REMOVED:` },
+              { type: 'output', content: `  ${packageName}` },
+              { type: 'output', content: `0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.` },
+              { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
+              { type: 'output', content: `Removing ${packageName} (${installed[packageName].version}) ...` }
+            ]);
+
+            // Remove from installed
+            const updatedInstalled = { ...installed };
+            delete updatedInstalled[packageName];
+            localStorage.setItem(installedKey, JSON.stringify(updatedInstalled));
+
+            // Remove placeholder files
+            fs.remove(`/usr/share/${packageName}/version.txt`);
+            fs.removeDirectory(`/usr/share/${packageName}`);
+            break;
+          }
+
+          case 'search': {
+            if (subArgs.length === 0) {
+              error = 'apt search: missing search pattern';
+              break;
+            }
+            const pattern = subArgs[0].toLowerCase();
+            const results = Object.values(AVAILABLE_PACKAGES)
+              .filter(pkg => pkg.name.includes(pattern) || pkg.description.toLowerCase().includes(pattern))
+              .map(pkg => `${pkg.name}/focal ${pkg.version} amd64\n  ${pkg.description}`);
+
+            if (results.length === 0) {
+              output = '';
+            } else {
+              output = results.join('\n\n');
+            }
+            break;
+          }
+
+          case 'show': {
+            if (subArgs.length === 0) {
+              error = 'apt show: missing package name';
+              break;
+            }
+            const packageName = subArgs[0];
+            const pkg = AVAILABLE_PACKAGES[packageName];
+
+            if (!pkg) {
+              error = `E: Unable to locate package ${packageName}`;
+              break;
+            }
+
+            output = `Package: ${pkg.name}
+Version: ${pkg.version}
+Maintainer: ${pkg.maintainer}
+Description: ${pkg.description}
+Homepage: https://packages.ubuntu.com/focal/${pkg.name}
+Download-Size: ${pkg.size}
+APT-Manual-Installed: no
+APT-Sources: http://archive.ubuntu.com/ubuntu focal/universe amd64 Packages
+Description: ${pkg.description}`;
+            break;
+          }
+
+          case 'list': {
+            const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+            const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+
+            if (subArgs.includes('--installed')) {
+              const installedList = Object.keys(installed).map(name => `${name}/focal ${installed[name].version} amd64 [installed]`);
+              output = installedList.join('\n');
+            } else {
+              // List all available packages
+              const allPackages = Object.values(AVAILABLE_PACKAGES).map(pkg => {
+                const isInstalled = installed[pkg.name];
+                return `${pkg.name}/focal ${pkg.version} amd64${isInstalled ? ' [installed]' : ''}`;
+              });
+              output = allPackages.join('\n');
+            }
+            break;
+          }
+
+          case 'upgrade': {
+            const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+            const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+
+            const upgradable = Object.keys(installed).filter(name => {
+              const current = installed[name];
+              const available = AVAILABLE_PACKAGES[name];
+              return available && available.version !== current.version;
+            });
+
+            if (upgradable.length === 0) {
+              output = 'All packages are up to date.';
+            } else {
+              setLines(prev => [...prev,
+                { type: 'input', content: command, commandPrompt: currentPrompt },
+                { type: 'output', content: `Reading package lists... Done` },
+                { type: 'output', content: `Building dependency tree... Done` },
+                { type: 'output', content: `Reading state information... Done` },
+                { type: 'output', content: `Calculating upgrade... Done` },
+                { type: 'output', content: `The following packages will be upgraded:` },
+                { type: 'output', content: `  ${upgradable.join(' ')}` },
+                { type: 'output', content: `${upgradable.length} upgraded, 0 newly installed, 0 to remove and 0 not upgraded.` },
+                { type: 'output', content: `Need to get 0 B of archives.` },
+                { type: 'output', content: `After this operation, 0 B of additional disk space will be used.` },
+                { type: 'output', content: `Reading changelogs... Done` },
+                { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
+                ...upgradable.map(pkg => ({ type: 'output' as const, content: `Preparing to unpack .../${pkg} ...` })),
+                ...upgradable.map(pkg => ({ type: 'output' as const, content: `Unpacking ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) over (${installed[pkg].version}) ...` })),
+                ...upgradable.map(pkg => ({ type: 'output' as const, content: `Setting up ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) ...` }))
+              ]);
+
+              // Update versions
+              const updatedInstalled = { ...installed };
+              upgradable.forEach(pkg => {
+                updatedInstalled[pkg] = { ...AVAILABLE_PACKAGES[pkg], installedAt: new Date().toISOString() };
+              });
+              localStorage.setItem(installedKey, JSON.stringify(updatedInstalled));
+            }
+            break;
+          }
+
+          default:
+            error = `apt: invalid operation ${subcommand}\nTry: apt --help`;
         }
         break;
       }
@@ -1875,7 +2187,7 @@ Examples:
   const getCommandCompletions = (prefix: string): string[] => {
     const allCommands = [
       'help', 'man', 'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm',
-      'cat', 'nano', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
+      'cat', 'nano', 'apt', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
       'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
     ];
 

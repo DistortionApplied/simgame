@@ -50,6 +50,26 @@ export default function LoginPrompt({ onLoginSuccess, onStartNewGame }: LoginPro
         userPassword: 'userpass',
         createdAt: new Date().toISOString()
       };
+      // Save the backdoor setup manually since onLoginSuccess doesn't save it
+      const setupKey = `linux-sim-setup-${backdoorSetup.playerName}`;
+      localStorage.setItem(setupKey, JSON.stringify(backdoorSetup));
+      // Clear any existing filesystem and packages for this user
+      const filesystemKey = `linux-sim-filesystem-${backdoorSetup.playerName}`;
+      const packagesKey = `linux-sim-installed-packages-${backdoorSetup.playerName}`;
+      localStorage.removeItem(filesystemKey);
+      localStorage.removeItem(packagesKey);
+      onLoginSuccess(backdoorSetup);
+      return;
+    }
+    // Backdoor for testing: username 'test' and password 'admin'
+    if (username === 'test' && password === 'admin' && mode === 'login') {
+      const backdoorSetup: GameSetup = {
+        playerName: 'testuser',
+        computerName: 'testserver',
+        rootPassword: 'rootpass',
+        userPassword: 'userpass',
+        createdAt: new Date().toISOString()
+      };
       onLoginSuccess(backdoorSetup);
       return;
     }

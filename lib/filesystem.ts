@@ -351,7 +351,7 @@ export class FakeFileSystem {
       '  touch <file>             - Create empty file\n' +
       '  rm <file>                - Remove file\n' +
       '  cat <file>               - Display file contents\n' +
-      '  nano <file>              - Edit file with nano text editor\n' +
+      '  apt <cmd>                - Package management (install, remove, search)\n' +
       '  sudo <cmd>               - Execute command as root\n' +
       '  su [user]                - Switch to another user account\n' +
       '  cp <src> <dst>           - Copy file\n' +
@@ -369,9 +369,14 @@ export class FakeFileSystem {
       'Persistence:\n' +
       '  Your filesystem state is automatically saved after each command.\n' +
       '  Use "save" to manually save, "reset" to start fresh.\n\n' +
+      'Package Management:\n' +
+      '  Install additional software with apt: apt install <package>\n' +
+      '  Available package: nano (text editor)\n' +
+      '  Example: apt install nano (then use nano <file> to edit)\n' +
+      '  Remove with: apt remove nano\n\n' +
       'Learning Linux:\n' +
       '  Use "man <command>" to read detailed documentation for any command.\n' +
-      '  Example: man ls, man cd, man chmod\n\n' +
+      '  Example: man ls, man cd, man chmod, man apt\n\n' +
       '⚠️  Realistic Consequences:\n' +
       '  This is a REALISTIC Linux simulation! If you delete system files,\n' +
       '  things will break. For example:\n' +
@@ -497,7 +502,7 @@ export class FakeFileSystem {
 
     // Check for missing man pages and create them individually
     const requiredManPages = [
-      'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat', 'nano', 'sudo', 'su',
+      'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat', 'nano', 'apt', 'sudo', 'su',
       'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
       'man', 'help', 'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
     ];
@@ -1476,6 +1481,48 @@ SEE ALSO
 `);
         break;
 
+      case 'apt':
+        this.createFile('/usr/share/man/man1/apt.1', `APT(1)                         APT                          APT(1)
+
+NAME
+        apt - command-line package manager
+
+SYNOPSIS
+        apt [OPTIONS] COMMAND
+
+DESCRIPTION
+        apt provides a high-level command-line interface for the package management
+        system. It is intended as an end user interface and enables some options
+        better suited for interactive usage by default compared to more specialized
+        APT tools like apt-get(8) and apt-cache(8).
+
+COMMANDS
+        install    Install packages
+        remove     Remove packages
+        search     Search for packages
+        show       Show package details
+        list       List packages
+        update     Update package list
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        apt update
+                Update package list
+
+        apt install nano
+                Install nano text editor
+
+        apt search editor
+                Search for text editors
+
+SEE ALSO
+        apt-get(8), apt-cache(8), sources.list(5)
+`);
+        break;
+
       // Add other man pages as needed...
       default:
         // For commands without detailed man pages, create a simple one
@@ -1506,7 +1553,7 @@ SEE ALSO
 
     // Check for missing binary files and create them
     const requiredBinaries = [
-      'ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'help', 'save', 'reset', 'clear', 'reboot'
+      'ls', 'cd', 'pwd', 'cat', 'mkdir', 'rmdir', 'touch', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'help', 'apt', 'save', 'reset', 'clear', 'reboot'
     ];
 
     for (const bin of requiredBinaries) {
