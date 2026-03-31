@@ -15,6 +15,8 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [currentLine, setCurrentLine] = useState(1);
+  const [currentCol, setCurrentCol] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -47,6 +49,22 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
     setHasUnsavedChanges(true);
+    updateCursorPosition();
+  };
+
+  const handleSelectionChange = () => {
+    updateCursorPosition();
+  };
+
+  const updateCursorPosition = () => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const lines = content.substring(0, start).split('\n');
+    const line = lines.length;
+    const col = lines[lines.length - 1].length + 1;
+    setCurrentLine(line);
+    setCurrentCol(col);
   };
 
   const handleSave = async () => {
@@ -129,16 +147,27 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
       </div>
 
       {/* Editor area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex">
+        {/* Line numbers */}
+        <div className="bg-gray-900 text-gray-500 font-mono text-sm p-4 select-none border-r border-gray-700 overflow-auto">
+          {content.split('\n').map((_, index) => (
+            <div key={index} className="leading-5 h-5">
+              {index + 1}
+            </div>
+          ))}
+        </div>
+        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={content}
           onChange={handleContentChange}
           onKeyDown={handleKeyDown}
-          className="w-full h-full bg-black text-green-400 font-mono border-none outline-none resize-none caret-green-400 placeholder-gray-600 p-4 overflow-auto"
+          onSelect={handleSelectionChange}
+          className="flex-1 h-full bg-black text-green-400 font-mono border-none outline-none resize-none caret-green-400 placeholder-gray-600 overflow-auto"
           placeholder="Start typing..."
           spellCheck={false}
           autoFocus
+          style={{ paddingLeft: '1rem', paddingTop: '1rem', paddingBottom: '1rem' }}
         />
       </div>
 
@@ -151,7 +180,7 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
             <span className="text-green-400 font-bold">^X</span> Exit
           </div>
           <div className="text-gray-500">
-            nano {filePath}
+            Line {currentLine}, Col {currentCol} | nano {filePath}
           </div>
         </div>
       </div>

@@ -534,6 +534,12 @@ SEE ALSO
             return;
           }
           newUser.password = newPassword;
+
+          // Update /etc/passwd
+          const passwdContent = fs.readFile('/etc/passwd') || '';
+          const newPasswdContent = passwdContent + `${username}:${newPassword}:${newUser.uid}:${newUser.gid}:${username}:/home/${username}:/bin/bash\n`;
+          fs.writeFile('/etc/passwd', newPasswdContent);
+
           setLines(prev => [...prev,
             { type: 'input', content: command, commandPrompt: currentPrompt },
             { type: 'output', content: `adduser: user '${username}' added successfully` }
@@ -609,6 +615,11 @@ SEE ALSO
         // Remove user from filesystem
         fs.getUsers().delete(username);
 
+        // Update /etc/passwd
+        const passwdContent = fs.readFile('/etc/passwd') || '';
+        const newPasswdContent = passwdContent.split('\n').filter(line => !line.startsWith(username + ':')).join('\n');
+        fs.writeFile('/etc/passwd', newPasswdContent);
+
         output = `userdel: user '${username}' removed successfully`;
         break;
       }
@@ -671,9 +682,23 @@ SEE ALSO
               if (newPassword !== confirmPassword) {
                 setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
               } else {
-                targetUser.password = newPassword;
-                setLines(prev => [...prev, { type: 'output', content: `passwd: password updated successfully` }]);
-              }
+                      targetUser.password = newPassword;
+
+                      // Update /etc/passwd
+                      const passwdContent = fs.readFile('/etc/passwd') || '';
+                      const lines = passwdContent.split('\n');
+                      const newLines = lines.map(line => {
+                        if (line.startsWith(targetUsername + ':')) {
+                          const parts = line.split(':');
+                          parts[1] = newPassword;
+                          return parts.join(':');
+                        }
+                        return line;
+                      });
+                      fs.writeFile('/etc/passwd', newLines.join('\n'));
+
+                      setLines(prev => [...prev, { type: 'output', content: `passwd: password updated successfully` }]);
+                    }
             });
           });
         } else {
@@ -698,7 +723,21 @@ SEE ALSO
                     setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
                   } else {
                     targetUser.password = newPassword;
-                    setLines(prev => [...prev, { type: 'output', content: `passwd: password updated successfully` }]);
+
+                    // Update /etc/passwd
+                    const passwdContent = fs.readFile('/etc/passwd') || '';
+                    const lines = passwdContent.split('\n');
+                    const newLines = lines.map(line => {
+                      if (line.startsWith(targetUsername + ':')) {
+                        const parts = line.split(':');
+                        parts[1] = newPassword;
+                        return parts.join(':');
+                      }
+                      return line;
+                    });
+                    fs.writeFile('/etc/passwd', newLines.join('\n'));
+
+                    setLines(prev => [...prev, { type: 'output', content: `passwd: password for ${targetUsername} updated successfully` }]);
                   }
                 });
               });
@@ -715,7 +754,21 @@ SEE ALSO
                   setLines(prev => [...prev, { type: 'error', content: 'passwd: passwords do not match' }]);
                 } else {
                   targetUser.password = newPassword;
-                  setLines(prev => [...prev, { type: 'output', content: `passwd: password for ${targetUsername} updated successfully` }]);
+
+                  // Update /etc/passwd
+                  const passwdContent = fs.readFile('/etc/passwd') || '';
+                  const lines = passwdContent.split('\n');
+                  const newLines = lines.map(line => {
+                    if (line.startsWith(targetUsername + ':')) {
+                      const parts = line.split(':');
+                      parts[1] = newPassword;
+                      return parts.join(':');
+                    }
+                    return line;
+                  });
+                  fs.writeFile('/etc/passwd', newLines.join('\n'));
+
+                  setLines(prev => [...prev, { type: 'output', content: `passwd: password updated successfully` }]);
                 }
               });
             });
@@ -2145,7 +2198,7 @@ Examples:
     const prevParts = parts.slice(0, -1);
 
     // Determine if this is command completion or path completion
-    const isPathCompletion = currentPart.includes('/') || currentPart.startsWith('.');
+    const isPathCompletion = prevParts.length > 0 || currentPart.includes('/') || currentPart.startsWith('.');
 
     if (!isPathCompletion) {
       // Command completion
@@ -2153,12 +2206,14 @@ Examples:
       if (completions.length === 1) {
         const newInput = [...prevParts, completions[0]].join(' ');
         setCurrentInput(newInput);
+        inputRef.current?.setSelectionRange(newInput.length, newInput.length);
       } else if (completions.length > 1) {
         // Show possible completions
         const commonPrefix: string = getCommonPrefix(completions);
         if (commonPrefix.length > currentPart.length) {
           const newInput = [...prevParts, commonPrefix].join(' ');
           setCurrentInput(newInput);
+          inputRef.current?.setSelectionRange(newInput.length, newInput.length);
         } else {
           // Show all completions
           setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
@@ -2171,11 +2226,13 @@ Examples:
         const completedPath = completions[0];
         const newInput = [...prevParts, completedPath].join(' ');
         setCurrentInput(newInput);
+        inputRef.current?.setSelectionRange(newInput.length, newInput.length);
       } else if (completions.length > 1) {
         const commonPrefix: string = getCommonPrefix(completions);
         if (commonPrefix.length > currentPart.length) {
           const newInput = [...prevParts, commonPrefix].join(' ');
           setCurrentInput(newInput);
+          inputRef.current?.setSelectionRange(newInput.length, newInput.length);
         } else {
           // Show all completions
           setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);

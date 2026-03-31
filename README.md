@@ -54,3 +54,8 @@
     - more testing
     - sorted out created user permissions.
     1.7.6 - mid version push
+    - addressed autocomplete bug
+    - Improved Nano
+    - 
+1.8 rev & imp
+    x 

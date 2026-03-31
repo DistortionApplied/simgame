@@ -271,11 +271,17 @@ export class FakeFileSystem {
 
     // /etc files (system config files, no extensions)
     this.createFile('/etc/passwd',
-      'root:x:0:0:root:/root:/bin/bash\n' +
-      `${userName}:x:1000:1000:${userName}:/home/${userName}:/bin/bash\n` +
+      `root:${this.setupData?.rootPassword || 'root'}:0:0:root:/root:/bin/bash\n` +
+      `${userName}:${this.setupData?.userPassword || 'user'}:1000:1000:${userName}:/home/${userName}:/bin/bash\n` +
       'daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n' +
       'bin:x:2:2:bin:/bin:/usr/sbin/nologin\n'
     );
+    let passwdNode = this.getNode('/etc/passwd');
+    if (passwdNode) {
+      passwdNode.permissions = '600';
+      passwdNode.uid = 0;
+      passwdNode.gid = 0;
+    }
 
     this.createFile('/etc/group',
       'root:x:0:\n' +
@@ -283,6 +289,12 @@ export class FakeFileSystem {
       'daemon:x:1:\n' +
       'bin:x:2:\n'
     );
+    let groupNode = this.getNode('/etc/group');
+    if (groupNode) {
+      groupNode.permissions = '600';
+      groupNode.uid = 0;
+      groupNode.gid = 0;
+    }
 
     // /etc/sudoers - sudo configuration
     this.createFile('/etc/sudoers',
@@ -296,15 +308,49 @@ export class FakeFileSystem {
       '# Allow members of group sudo to execute any command\n' +
       '# %sudo   ALL=(ALL:ALL) ALL\n'
     );
+    let sudoersNode = this.getNode('/etc/sudoers');
+    if (sudoersNode) {
+      sudoersNode.permissions = '600';
+      sudoersNode.uid = 0;
+      sudoersNode.gid = 0;
+    }
 
     this.createFile('/etc/hostname', 'linux-sim');
+    let hostnameNode = this.getNode('/etc/hostname');
+    if (hostnameNode) {
+      hostnameNode.permissions = '600';
+      hostnameNode.uid = 0;
+      hostnameNode.gid = 0;
+    }
+
     this.createFile('/etc/hosts', '127.0.0.1\tlocalhost\n::1\tlocalhost\n');
+    let hostsNode = this.getNode('/etc/hosts');
+    if (hostsNode) {
+      hostsNode.permissions = '600';
+      hostsNode.uid = 0;
+      hostsNode.gid = 0;
+    }
+
     this.createFile('/etc/os-release',
       'NAME="Linux Sim"\n' +
       'VERSION="1.0"\n' +
       'ID=linux-sim\n' +
       'PRETTY_NAME="Linux Sim 1.0"\n'
     );
+    let osReleaseNode = this.getNode('/etc/os-release');
+    if (osReleaseNode) {
+      osReleaseNode.permissions = '600';
+      osReleaseNode.uid = 0;
+      osReleaseNode.gid = 0;
+    }
+
+    // Set /etc directory permissions to restrict access
+    let etcNode = this.getNode('/etc');
+    if (etcNode) {
+      etcNode.permissions = '700';
+      etcNode.uid = 0;
+      etcNode.gid = 0;
+    }
 
     // /home/user files
     this.createFile(`/home/${userName}/.bashrc`,
