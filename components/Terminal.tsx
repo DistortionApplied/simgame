@@ -436,8 +436,8 @@ Interactive Examples:
               // Validate octal mode (3 or 4 digits)
               if (!/^[0-7]{3,4}$/.test(mode)) {
                 error = `chmod: invalid mode '${mode}'\nTry: chmod --help`;
-              } else if (!fs.changePermissions(fullPath, mode)) {
-                error = `chmod: cannot access '${filePath}': No such file or directory`;
+              } else {
+                fs.changePermissions(fullPath, mode);
               }
             }
           }
@@ -888,11 +888,12 @@ Examples:
           targetPath = path === '~' ? home : home + path.substring(1);
         }
 
-        if (fs.changeDirectory(targetPath)) {
+        const result = fs.changeDirectory(targetPath);
+        if (result.success) {
           // Directory changed successfully
           setWorkingDirectory(fs.getWorkingDirectory());
         } else {
-          error = `cd: ${path}: No such file or directory`;
+          error = `cd: ${path}: ${result.error}`;
         }
         break;
       }
@@ -931,7 +932,7 @@ Examples:
         if (args.length === 0) {
           error = 'mkdir: missing operand\nUsage: mkdir <directory>';
         } else {
-          const failedDirs: string[] = [];
+          const failedDirs: { dir: string; error: string }[] = [];
           args.forEach(dir => {
             // Handle ~ expansion
             let expandedDir = dir;
@@ -940,12 +941,13 @@ Examples:
               expandedDir = dir === '~' ? home : home + dir.substring(1);
             }
 
-            if (!fs.createNewDirectory(expandedDir)) {
-              failedDirs.push(dir); // Use original dir name in error
+            const result = fs.createNewDirectory(expandedDir);
+            if (!result.success) {
+              failedDirs.push({ dir, error: result.error! });
             }
           });
           if (failedDirs.length > 0) {
-            error = `mkdir: cannot create directory '${failedDirs[0]}': File exists or permission denied`;
+            error = `mkdir: cannot create directory '${failedDirs[0].dir}': ${failedDirs[0].error}`;
           }
         }
         break;
@@ -1000,7 +1002,7 @@ Examples:
         if (args.length === 0) {
           error = 'touch: missing file operand';
         } else {
-          const failedFiles: string[] = [];
+          const failedFiles: { file: string; error: string }[] = [];
           args.forEach(file => {
             // Handle ~ expansion
             let expandedFile = file;
@@ -1009,12 +1011,13 @@ Examples:
               expandedFile = file === '~' ? home : home + file.substring(1);
             }
 
-            if (!fs.createNewFile(expandedFile)) {
-              failedFiles.push(file); // Use original file name in error
+            const result = fs.createNewFile(expandedFile);
+            if (!result.success) {
+              failedFiles.push({ file, error: result.error! });
             }
           });
           if (failedFiles.length > 0) {
-            error = `touch: cannot touch '${failedFiles[0]}': File exists or invalid path`;
+            error = `touch: cannot touch '${failedFiles[0].file}': ${failedFiles[0].error}`;
           }
         }
         break;
@@ -1038,14 +1041,15 @@ Examples:
         if (args.length === 0) {
           error = 'rm: missing operand';
         } else {
-          const failedFiles: string[] = [];
+          const failedFiles: { file: string; error: string }[] = [];
           args.forEach(file => {
-            if (!fs.remove(file)) {
-              failedFiles.push(file);
+            const result = fs.remove(file);
+            if (!result.success) {
+              failedFiles.push({ file, error: result.error! });
             }
           });
           if (failedFiles.length > 0) {
-            error = `rm: cannot remove '${failedFiles[0]}': No such file or directory`;
+            error = `rm: cannot remove '${failedFiles[0].file}': ${failedFiles[0].error}`;
           }
         }
         break;
@@ -1081,7 +1085,7 @@ Examples:
           });
 
           if (failedFiles.length > 0) {
-            error = `cat: ${failedFiles[0]}': No such file or directory`;
+            error = `cat: '${failedFiles[0]}': No such file or directory`;
           } else {
             output = contents.join('\n');
           }
@@ -1109,8 +1113,9 @@ Examples:
           error = 'cp: missing file operand\nUsage: cp <source> <destination>';
         } else {
           const [src, dst] = args;
-          if (!fs.copyFile(src, dst)) {
-            error = `cp: cannot copy '${src}' to '${dst}': No such file or directory`;
+          const result = fs.copyFile(src, dst);
+          if (!result.success) {
+            error = `cp: cannot copy '${src}' to '${dst}': ${result.error}`;
           }
         }
         break;
@@ -1165,8 +1170,9 @@ SEE ALSO
           error = 'mv: missing file operand\nUsage: mv <source> <destination>';
         } else {
           const [src, dst] = args;
-          if (!fs.moveFile(src, dst)) {
-            error = `mv: cannot move '${src}' to '${dst}': No such file or directory`;
+          const result = fs.moveFile(src, dst);
+          if (!result.success) {
+            error = `mv: cannot move '${src}' to '${dst}': ${result.error}`;
           }
         }
         break;

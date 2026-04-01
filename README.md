@@ -1,4 +1,6 @@
-"#simgame" 
+"#simgame"
+
+Currently, this is a linux terminal simulator. It will be more... I have many things I will be wanting to work on, but I welcome first, your insight.
 
 
 1.2 revisions and improvements
@@ -56,6 +58,8 @@
     1.7.6 - mid version push
     - addressed autocomplete bug
     - Improved Nano
-    - 
+    - put passwords in /etc/passwd -- for now...
+        - make sure it is not wide open access
 1.8 rev & imp
-    x 
+    x improve errors to more acurately reflect what is happening like real linux.
+    x figure out email, browser, etcetera

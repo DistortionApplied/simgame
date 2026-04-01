@@ -58,6 +58,8 @@ interface GameSetup {
   createdAt: string;
 }
 
+type FileSystemResult = { success: boolean; error?: string };
+
 export class FakeFileSystem {
   private root!: FileNode; // Using definite assignment assertion
   private currentDirectory!: FileNode;
@@ -1753,17 +1755,20 @@ SEE ALSO
     return this.getPathString(this.currentDirectory);
   }
 
-  changeDirectory(path: string): boolean {
+  changeDirectory(path: string): FileSystemResult {
     const target = this.resolvePath(path);
-    if (target && target.type === 'directory') {
-      // Check execute permission on target directory
-      if (!this.isRoot() && !this.checkPermission(target, 'execute')) {
-        return false; // Permission denied
-      }
-      this.currentDirectory = target;
-      return true;
+    if (!target) {
+      return { success: false, error: 'No such file or directory' };
     }
-    return false;
+    if (target.type !== 'directory') {
+      return { success: false, error: 'Not a directory' };
+    }
+    // Check execute permission on target directory
+    if (!this.isRoot() && !this.checkPermission(target, 'execute')) {
+      return { success: false, error: 'Permission denied' };
+    }
+    this.currentDirectory = target;
+    return { success: true };
   }
 
   listDirectory(path?: string, showHidden: boolean = false): FileNode[] {
@@ -1818,9 +1823,9 @@ SEE ALSO
     return true;
   }
 
-  createNewFile(path: string): boolean {
+  createNewFile(path: string): FileSystemResult {
     if (this.resolvePath(path)) {
-      return false; // Already exists
+      return { success: false, error: 'File exists' };
     }
 
     const parts = path.split('/').filter(p => p);
@@ -1828,13 +1833,16 @@ SEE ALSO
     const parentPath = parts.length > 0 ? '/' + parts.join('/') : '.';
     const parent = this.resolvePath(parentPath);
 
-    if (!parent || parent.type !== 'directory') {
-      return false;
+    if (!parent) {
+      return { success: false, error: 'No such file or directory' };
+    }
+    if (parent.type !== 'directory') {
+      return { success: false, error: 'Not a directory' };
     }
 
     // Check write permission on parent directory
     if (!this.isRoot() && !this.checkPermission(parent, 'write')) {
-      return false; // Permission denied
+      return { success: false, error: 'Permission denied' };
     }
 
     const file: FileNode = {
@@ -1850,12 +1858,12 @@ SEE ALSO
     };
 
     parent.children!.set(fileName, file);
-    return true;
+    return { success: true };
   }
 
-  createNewDirectory(path: string): boolean {
+  createNewDirectory(path: string): FileSystemResult {
     if (this.resolvePath(path)) {
-      return false; // Already exists
+      return { success: false, error: 'File exists' };
     }
 
     const parts = path.split('/').filter(p => p);
@@ -1863,41 +1871,48 @@ SEE ALSO
     const parentPath = parts.length > 0 ? '/' + parts.join('/') : '.';
     const parent = this.resolvePath(parentPath);
 
-    if (!parent || parent.type !== 'directory') {
-      return false;
+    if (!parent) {
+      return { success: false, error: 'No such file or directory' };
+    }
+    if (parent.type !== 'directory') {
+      return { success: false, error: 'Not a directory' };
     }
 
     // Check write permission on parent directory
     if (!this.isRoot() && !this.checkPermission(parent, 'write')) {
-      return false; // Permission denied
+      return { success: false, error: 'Permission denied' };
     }
 
     this.createDirectory(dirName, parent);
-    return true;
+    return { success: true };
   }
 
-  remove(path: string): boolean {
+  remove(path: string): FileSystemResult {
     const node = this.resolvePath(path);
-    if (!node || !node.parent || !node.parent.children) {
-      return false;
+    if (!node) {
+      return { success: false, error: 'No such file or directory' };
+    }
+    if (!node.parent || !node.parent.children) {
+      return { success: false, error: 'No such file or directory' };
     }
 
     // Check write permission on parent directory
     if (!this.isRoot() && !this.checkPermission(node.parent, 'write')) {
-      return false; // Permission denied
+      return { success: false, error: 'Permission denied' };
     }
 
     // Check write permission on file itself (for sticky bit etc., but simplified)
     if (node.type === 'file' && !this.isRoot() && !this.checkPermission(node, 'write')) {
-      return false; // Permission denied
+      return { success: false, error: 'Permission denied' };
     }
 
     // Don't allow removing directories with contents (simplified)
     if (node.type === 'directory' && node.children && node.children.size > 0) {
-      return false;
+      return { success: false, error: 'Directory not empty' };
     }
 
-    return node.parent.children.delete(node.name);
+    node.parent.children.delete(node.name);
+    return { success: true };
   }
 
   removeDirectory(path: string): boolean {
@@ -1914,19 +1929,34 @@ SEE ALSO
     return node.parent.children.delete(node.name);
   }
 
-  copyFile(srcPath: string, dstPath: string): boolean {
+  copyFile(srcPath: string, dstPath: string): FileSystemResult {
     const srcFile = this.resolvePath(srcPath);
+    if (!srcFile) {
+      return { success: false, error: 'No such file or directory' };
+    }
+    if (srcFile.type !== 'file') {
+      return { success: false, error: 'Not a regular file' };
+    }
+
     const dstParts = dstPath.split('/').filter(p => p);
     const dstName = dstParts.pop()!;
     const dstParentPath = dstParts.length > 0 ? '/' + dstParts.join('/') : '.';
     const dstParent = this.resolvePath(dstParentPath);
 
-    if (!srcFile || srcFile.type !== 'file' || !dstParent || dstParent.type !== 'directory') {
-      return false;
+    if (!dstParent) {
+      return { success: false, error: 'No such file or directory' };
+    }
+    if (dstParent.type !== 'directory') {
+      return { success: false, error: 'Not a directory' };
     }
 
     if (dstParent.children?.has(dstName)) {
-      return false; // Destination already exists
+      return { success: false, error: 'File exists' };
+    }
+
+    // Check write permission on destination directory
+    if (!this.isRoot() && !this.checkPermission(dstParent, 'write')) {
+      return { success: false, error: 'Permission denied' };
     }
 
     const newFile: FileNode = {
@@ -1942,12 +1972,13 @@ SEE ALSO
     };
 
     dstParent.children!.set(dstName, newFile);
-    return true;
+    return { success: true };
   }
 
-  moveFile(srcPath: string, dstPath: string): boolean {
-    if (!this.copyFile(srcPath, dstPath)) {
-      return false;
+  moveFile(srcPath: string, dstPath: string): FileSystemResult {
+    const copyResult = this.copyFile(srcPath, dstPath);
+    if (!copyResult.success) {
+      return copyResult;
     }
     return this.remove(srcPath);
   }
