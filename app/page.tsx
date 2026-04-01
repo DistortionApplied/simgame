@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Terminal from '../components/Terminal';
 import BootScreen from '../components/BootScreen';
 import LoginPrompt from '../components/LoginPrompt';
@@ -15,7 +15,7 @@ interface GameSetup {
   createdAt: string;
 }
 
-type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'loading' | 'editing';
+type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing';
 
 interface EditorState {
   filePath: string;
@@ -27,16 +27,8 @@ export default function Home() {
   const [setupData, setSetupData] = useState<GameSetup | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
 
-  useEffect(() => {
-    // No initial loading, start with boot
-  }, []);
-
   const handleStartNewGame = () => {
     setGameState('setup');
-  };
-
-  const handleLoadExistingGame = () => {
-    setGameState('playing');
   };
 
   const handleSetupComplete = (data: Omit<GameSetup, 'createdAt'>) => {
@@ -67,14 +59,11 @@ export default function Home() {
 
   const handleBackToLogin = () => {
     setGameState('login');
-  }
+  };
 
-  const handleDeleteExistingGame = () => {
-    // Clear all saved game data
-    localStorage.removeItem('linux-sim-setup');
-    localStorage.removeItem('linux-sim-filesystem');
+  const handleReboot = () => {
     setSetupData(null);
-    // Stay on login screen since there's no game to load anymore
+    setGameState('boot');
   };
 
   const handleOpenEditor = (filePath: string, content: string) => {
@@ -104,17 +93,6 @@ export default function Home() {
     setGameState('playing');
   };
 
-  if (gameState === 'loading') {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-green-400 text-xl mb-4">Loading Linux Sim...</div>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
   if (gameState === 'boot') {
     return <BootScreen onBootComplete={handleBootComplete} />;
   }
@@ -133,7 +111,7 @@ export default function Home() {
   }
 
   if (gameState === 'playing') {
-    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} />;
+    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onReboot={handleReboot} />;
   }
 
   if (gameState === 'editing' && editorState) {

@@ -20,9 +20,10 @@ interface GameSetup {
 interface TerminalProps {
   setupData: GameSetup | null;
   onOpenEditor: (filePath: string, content: string) => void;
+  onReboot: () => void;
 }
 
-export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
+export default function Terminal({ setupData, onOpenEditor, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
   const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd'];
 
@@ -44,22 +45,17 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
   );
 
   // Change to user's home directory on startup and initialize prompt
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (fs && setupData) {
       const homeDir = fs.getCurrentUser().home;
       fs.changeDirectory(homeDir);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentUser(fs.getCurrentUser());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessionUser(fs.getCurrentUser());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWorkingDirectory(fs.getWorkingDirectory());
     } else if (fs) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentUser(fs.getCurrentUser());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessionUser(fs.getCurrentUser());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWorkingDirectory(fs.getWorkingDirectory());
     }
   }, [fs, setupData]);
@@ -175,25 +171,26 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     let appendOutput = false;
 
     // Simple redirection parsing (basic support)
-    const redirectIndex = trimmedCommand.indexOf(' >');
+    // Check >> before > since >> contains >
     const appendIndex = trimmedCommand.indexOf(' >>');
+    const redirectIndex = trimmedCommand.indexOf(' >');
     const inputIndex = trimmedCommand.indexOf(' <');
 
     let commandPart = trimmedCommand;
 
-    // Handle output redirection (overwrite)
-    if (redirectIndex !== -1) {
-      const parts = trimmedCommand.split(' >', 2);
-      commandPart = parts[0].trim();
-      redirectOutput = parts[1].trim();
-      appendOutput = false;
-    }
-    // Handle output redirection (append) - check this first since >> contains >
-    else if (appendIndex !== -1) {
+    // Handle output redirection (append) - must check >> before > since >> contains >
+    if (appendIndex !== -1) {
       const parts = trimmedCommand.split(' >>', 2);
       commandPart = parts[0].trim();
       redirectOutput = parts[1].trim();
       appendOutput = true;
+    }
+    // Handle output redirection (overwrite)
+    else if (redirectIndex !== -1) {
+      const parts = trimmedCommand.split(' >', 2);
+      commandPart = parts[0].trim();
+      redirectOutput = parts[1].trim();
+      appendOutput = false;
     }
 
     // Handle input redirection
@@ -2043,43 +2040,10 @@ SEE ALSO
           ]);
         }, 4800);
 
-        // Show welcome message and login prompt
+        // Transition back to the real login screen
         setTimeout(() => {
-          setLines(prev => [...prev,
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Welcome to Linux Sim!' },
-            { type: 'output', content: ' * Documentation:  https://help.ubuntu.com' },
-            { type: 'output', content: ' * Management:     https://landscape.canonical.com' },
-            { type: 'output', content: ' * Support:        https://ubuntu.com/advantage' },
-            { type: 'output', content: '' },
-            { type: 'output', content: ' System information as of ' + new Date().toLocaleString() },
-            { type: 'output', content: '' },
-            { type: 'output', content: ' System load:  0.0               Processes:             1' },
-            { type: 'output', content: ' Usage of /:   10.0% of 9.78GB    Users logged in:       0' },
-            { type: 'output', content: ' Memory usage: 15%               IPv4 address for eth0: 10.0.2.15' },
-            { type: 'output', content: ' Swap usage:   0%' },
-            { type: 'output', content: '' },
-            { type: 'output', content: '0 updates can be applied immediately.' },
-            { type: 'output', content: '0 of these updates are standard security updates.' },
-            { type: 'output', content: 'To see these additional updates run: apt list --upgradable' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'The programs included with the Ubuntu system are free software;' },
-            { type: 'output', content: 'the exact distribution terms for each program are described in the' },
-            { type: 'output', content: 'individual files in /usr/share/doc/*/copyright.' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by' },
-            { type: 'output', content: 'applicable law.' },
-            { type: 'output', content: '' },
-            { type: 'output', content: 'Linux Sim ' + (setupData?.computerName || 'linux-sim') + ' tty1' },
-            { type: 'output', content: '' },
-            { type: 'output', content: (setupData?.computerName || 'linux-sim') + ' login: ' }
-          ]);
-
-          // Reset rebooting state and allow input again
           setIsRebooting(false);
-          // Reset to initial state - user would need to login again
-          setCommandHistory([]);
-          setCurrentInput('');
+          onReboot();
         }, 6000);
 
         return; // Don't add the reboot command to history
