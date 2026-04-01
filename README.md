@@ -61,5 +61,6 @@ Currently, this is a linux terminal simulator. It will be more... I have many th
     - put passwords in /etc/passwd -- for now...
         - make sure it is not wide open access
 1.8 rev & imp
-    x improve errors to more acurately reflect what is happening like real linux.
+    - improve errors to more acurately reflect what is happening like real linux.
+        *this has been done, but needs to be tested.
     x figure out email, browser, etcetera
