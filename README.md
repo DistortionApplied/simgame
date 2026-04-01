@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. Let's make another file and use it for the nmap program, similar to how it is done with nano. That way we can get some code out of the Terminal.tsx file to shorten it.  Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification. I want nmap to work in the terminal as it should, but I want the code associated with it to be in another file to shorten Terminal.tsx. Make absolutely sure that none of your changes effect the funstionaluty of what has already been built.
+I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. Let's make another file and use it for the (synopsis of all the commands), that way we can get some code out of the Terminal.tsx file to shorten it.  Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification. Make absolutely sure that none of your changes effect the functionaluty of what has already been built.
 
 
 1.2 revisions and improvements
@@ -123,6 +123,9 @@ I want to make the monolithic files shorter by adding new files, but last time I
             - ready for future network configuration and mock internet features
 1.9 rev & imp
     - moved man pages to different file to try to shorten the main files a little bit.
+    - moved nmap to shorten Terminal.tsx
+    - moved apt to shorten Terminal.tsx
+    -
     x figure out email, browser, etcetera
 
 
