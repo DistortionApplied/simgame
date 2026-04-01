@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 interface NanoEditorProps {
   filePath: string;
   initialContent: string;
-  onSave: (content: string) => Promise<boolean>;
+  onSave: (content: string) => Promise<string | null>;
   onExit: () => void;
 }
 
@@ -71,13 +71,13 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
     setIsSaving(true);
     setSaveMessage('');
     try {
-      const success = await onSave(content);
-      if (success) {
+      const error = await onSave(content);
+      if (error === null) {
         setHasUnsavedChanges(false);
         setSaveMessage('File saved successfully');
         setTimeout(() => setSaveMessage(''), 2000);
       } else {
-        setSaveMessage('Failed to save file');
+        setSaveMessage(error);
         setTimeout(() => setSaveMessage(''), 3000);
       }
     } catch (error) {

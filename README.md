@@ -62,5 +62,10 @@ Currently, this is a linux terminal simulator. It will be more... I have many th
         - make sure it is not wide open access
 1.8 rev & imp
     - improve errors to more acurately reflect what is happening like real linux.
-        *this has been done, but needs to be tested.
+    
     x figure out email, browser, etcetera
+
+
+    testing:
+
+          

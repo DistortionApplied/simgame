@@ -23,6 +23,9 @@ interface TerminalProps {
 }
 
 export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
+  // Game-specific commands that are always available (don't require binaries)
+  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd'];
+
   const [lines, setLines] = useState<TerminalLine[]>([
     { type: 'output', content: `Welcome to Linux Sim Game, ${setupData?.playerName || 'User'}!` },
     { type: 'output', content: `Connected to ${setupData?.computerName || 'linux-sim'}` },
@@ -207,8 +210,7 @@ export default function Terminal({ setupData, onOpenEditor }: TerminalProps) {
     let output: string = '';
     let error: string = '';
 
-    // Check if command binary exists (except for built-in commands)
-    const builtinCommands = ['cd', 'pwd', 'help', 'clear', 'debug', 'nano', 'sudo', 'su', 'reboot', 'ls', 'touch', 'cat', 'mkdir', 'rmdir', 'rm', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find', 'man', 'save', 'reset', 'adduser', 'userdel', 'passwd'];
+    // Check if command binary exists (game-specific commands are builtins)
     if (!builtinCommands.includes(cmd)) {
       const binaryPath = `/bin/${cmd}.bin`;
       if (!fs.readFile(binaryPath)) {
@@ -293,31 +295,27 @@ Examples:
         let targetPath = '.';
 
         // Parse options
-        const filteredArgs = args.filter(arg => {
+        const filteredArgs = [];
+        for (const arg of args) {
           if (arg === '-a' || arg === '--all') {
             showHidden = true;
-            return false;
-          }
-          if (arg === '-l') {
+          } else if (arg === '-l') {
             longFormat = true;
-            return false;
-          }
-          if (arg === '-d' || arg === '--directory') {
+          } else if (arg === '-d' || arg === '--directory') {
             directoryOnly = true;
-            return false;
-          }
-          if (arg === '-la' || arg === '-al') {
+          } else if (arg === '-la' || arg === '-al') {
             showHidden = true;
             longFormat = true;
-            return false;
-          }
-          if (arg === '-ld') {
+          } else if (arg === '-ld') {
             longFormat = true;
             directoryOnly = true;
-            return false;
+          } else if (arg.startsWith('-')) {
+            error = `ls: invalid option '${arg}'\nTry 'ls --help' for more information.`;
+            break;
+          } else {
+            filteredArgs.push(arg);
           }
-          return true;
-        });
+        }
 
         if (filteredArgs.length > 0) {
           targetPath = filteredArgs[0];
@@ -1607,6 +1605,12 @@ SEE ALSO
             fs.createNewDirectory(`/usr/share/${packageName}`);
             fs.createNewFile(`/usr/share/${packageName}/version.txt`);
             fs.writeFile(`/usr/share/${packageName}/version.txt`, pkg.version);
+
+            // Create binary for the package if needed
+            if (packageName === 'nano') {
+              fs.createNewFile(`/bin/nano.bin`);
+              fs.writeFile(`/bin/nano.bin`, '#!/bin/bash\n# nano text editor binary\n');
+            }
             break;
           }
 
@@ -1643,6 +1647,11 @@ SEE ALSO
             const updatedInstalled = { ...installed };
             delete updatedInstalled[packageName];
             localStorage.setItem(installedKey, JSON.stringify(updatedInstalled));
+
+            // Remove binary for the package if needed
+            if (packageName === 'nano') {
+              fs.remove(`/bin/nano.bin`);
+            }
 
             // Remove placeholder files
             fs.remove(`/usr/share/${packageName}/version.txt`);
@@ -2254,7 +2263,14 @@ Examples:
       'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
     ];
 
-    return allCommands.filter(cmd => cmd.startsWith(prefix));
+    // Only include commands that are builtin or have binaries
+    const availableCommands = allCommands.filter(cmd => {
+      if (builtinCommands.includes(cmd)) return true;
+      const binaryPath = `/bin/${cmd}.bin`;
+      return fs.readFile(binaryPath) !== null;
+    });
+
+    return availableCommands.filter(cmd => cmd.startsWith(prefix));
   };
 
   const getPathCompletions = (prefix: string): string[] => {

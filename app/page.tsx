@@ -87,18 +87,15 @@ export default function Home() {
       // Import filesystem dynamically to avoid circular dependencies
       const { FakeFileSystem } = await import('../lib/filesystem');
       const fs = new FakeFileSystem(setupData);
-      const success = fs.writeFile(editorState!.filePath, content);
-      if (success) {
+      const result = fs.writeFile(editorState!.filePath, content);
+      if (result.success) {
         fs.saveToLocalStorage(); // Save the filesystem state
-        console.log(`File saved: ${editorState!.filePath}`);
-        return true;
+        return null; // Success
       } else {
-        console.error('Failed to save file');
-        return false;
+        return result.error || 'Failed to save file';
       }
     } catch (error) {
-      console.error('Error saving file:', error);
-      return false;
+      return 'Error saving file';
     }
   };
 

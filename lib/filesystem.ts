@@ -122,6 +122,9 @@ export class FakeFileSystem {
 
     // Create basic directory structure (system directories owned by root)
     this.createDirectoryAsRoot('bin', root);
+    // Make /bin writable for package installations (game simplification)
+    const binDir = root.children!.get('bin')!;
+    binDir.permissions = 'drwxrwxrwx'; // 777 permissions for /bin in game
     this.createDirectoryAsRoot('boot', root);
     this.createDirectoryAsRoot('dev', root);
     this.createDirectoryAsRoot('etc', root);
@@ -1809,18 +1812,25 @@ SEE ALSO
     return null;
   }
 
-  writeFile(path: string, content: string): boolean {
+  writeFile(path: string, content: string): FileSystemResult {
     const file = this.resolvePath(path);
-    if (!file || file.type !== 'file') return false;
+    if (!file || file.type !== 'file') {
+      // Try to create the file if it doesn't exist
+      const result = this.createNewFile(path);
+      if (!result.success) return result;
+      // Retry
+      return this.writeFile(path, content);
+    }
 
+    // Check write permission on the file
     if (!this.isRoot() && !this.checkPermission(file, 'write')) {
-      return false; // Permission denied
+      return { success: false, error: 'Permission denied' };
     }
 
     file.content = content;
     file.size = content.length;
     file.modified = new Date();
-    return true;
+    return { success: true };
   }
 
   createNewFile(path: string): FileSystemResult {
