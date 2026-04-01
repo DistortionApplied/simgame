@@ -126,6 +126,8 @@ I want to make the monolithic files shorter by adding new files, but last time I
     - moved nmap to shorten Terminal.tsx
     - moved apt to shorten Terminal.tsx
     mid version push
+    - merged branch back to main
+    -
     -
     x figure out email, browser, etcetera
 
