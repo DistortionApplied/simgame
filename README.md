@@ -2,6 +2,40 @@
 
 Currently, this is a linux terminal simulator. It will be more... I have many things I will be wanting to work on, but I welcome first, your insight.
 
+The simgame is a web-based Linux terminal simulator built with Next.js and TypeScript. It provides an interactive experience mimicking a Linux command-line environment for educational or entertainment purposes.
+
+Expected Behavior
+-Boot Sequence: Starts with a simulated boot screen displaying system initialization messages.
+
+-Authentication: Users log in with a username and password. New users go through a setup wizard to create their account, set a root password, and configure basic system details.
+
+-Terminal Interface: After login, users enter a terminal emulator where they can execute Linux commands. The interface displays:
+
+-A prompt showing username, hostname, and current directory (e.g., user@linux-sim:/home/user$)
+-Command history and output
+-Support for basic editing (backspace, etc.)
+-Filesystem Simulation: Uses a virtual filesystem stored in localStorage with:
+
+-Full directory structure (/bin, /home, /etc, etc.)
+-User accounts and permissions (root and regular users)
+-File operations (create, read, write, delete)
+-Realistic file metadata (permissions, ownership, timestamps)
+-Command Support: Implements numerous Linux commands including:
+
+-File management: ls, cd, pwd, mkdir, rmdir, touch, rm, cp, mv
+-User management: adduser, userdel, passwd, su, sudo
+-Permissions: chmod
+-Text processing: cat, grep, echo
+-System info: whoami, id
+-Network simulation: ping, ifconfig
+-Package management: apt for installing simulated packages like nano, nmap
+-Utilities: clear, help, man, reboot, save, reset
+-Text Editor: nano command opens a built-in editor for file modification.
+
+-Persistence: Game state (filesystem, users, packages) persists across sessions via localStorage.
+
+-Error Handling: Commands validate permissions, file existence, and provide appropriate error messages.
+
 
 1.2 revisions and improvements
     - implemented man
@@ -82,6 +116,8 @@ Currently, this is a linux terminal simulator. It will be more... I have many th
             - includes packet statistics (RX/TX packets, errors, etc.)
             - supports interface-specific queries
             - ready for future network configuration and mock internet features
+1.9 rev & imp
+    - moved man pages to different file to try to shorten the main files a little bit.
     x figure out email, browser, etcetera
 
 
