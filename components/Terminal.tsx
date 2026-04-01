@@ -25,7 +25,7 @@ interface TerminalProps {
 
 export default function Terminal({ setupData, onOpenEditor, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
-  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd'];
+  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig'];
 
   const [lines, setLines] = useState<TerminalLine[]>([
     { type: 'output', content: `Welcome to Linux Sim Game, ${setupData?.playerName || 'User'}!` },
@@ -35,7 +35,14 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
   const [currentInput, setCurrentInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [fs] = useState(() => new FakeFileSystem(setupData));
+  const [fs] = useState(() => {
+    const filesystem = new FakeFileSystem(setupData);
+    if (setupData) {
+      const homeDir = filesystem.getCurrentUser().home;
+      filesystem.changeDirectory(homeDir);
+    }
+    return filesystem;
+  });
   const [currentUser, setCurrentUser] = useState(() => fs.getCurrentUser());
   const [sessionUser, setSessionUser] = useState(() => fs.getCurrentUser());
   const [workingDirectory, setWorkingDirectory] = useState(fs.getWorkingDirectory());
@@ -43,22 +50,6 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
     `${currentUser.name}@${setupData?.computerName || 'linux-sim'}:${workingDirectory}$ `,
     [currentUser, setupData, workingDirectory]
   );
-
-  // Change to user's home directory on startup and initialize prompt
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => {
-    if (fs && setupData) {
-      const homeDir = fs.getCurrentUser().home;
-      fs.changeDirectory(homeDir);
-      setCurrentUser(fs.getCurrentUser());
-      setSessionUser(fs.getCurrentUser());
-      setWorkingDirectory(fs.getWorkingDirectory());
-    } else if (fs) {
-      setCurrentUser(fs.getCurrentUser());
-      setSessionUser(fs.getCurrentUser());
-      setWorkingDirectory(fs.getWorkingDirectory());
-    }
-  }, [fs, setupData]);
   const [awaitingPassword, setAwaitingPassword] = useState(false);
   const [passwordCallback, setPasswordCallback] = useState<((password: string) => void) | null>(null);
 
@@ -83,6 +74,15 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
       size: '548 kB',
       dependencies: [],
       provides: ['editor']
+    },
+    'nmap': {
+      name: 'nmap',
+      version: '7.91+dfsg1+really7.80+dfsg1-2',
+      description: 'Nmap - The Network Mapper',
+      maintainer: 'Debian Security Tools <team+pkg-security@tracker.debian.org>',
+      size: '1,234 kB',
+      dependencies: [],
+      provides: ['network-scanner']
     }
   };
 
@@ -206,6 +206,24 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
 
     let output: string = '';
     let error: string = '';
+    let stdinContent: string | null = null;
+
+    // Handle input redirection
+    if (redirectInput) {
+      const inputContent = fs.readFile(redirectInput);
+      if (inputContent === null) {
+        error = `bash: ${redirectInput}: No such file or directory`;
+        // Add the command line and error to output
+        setLines(prev => [...prev, { type: 'input', content: command, commandPrompt: currentPrompt }]);
+        if (error) {
+          setLines(prev => [...prev, { type: 'error', content: error }]);
+        }
+        // Save filesystem state
+        fs.saveToLocalStorage();
+        return;
+      }
+      stdinContent = inputContent;
+    }
 
     // Check if command binary exists (game-specific commands are builtins)
     if (!builtinCommands.includes(cmd)) {
@@ -235,7 +253,7 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
           ['rmdir <dir>', 'Remove empty directory'],
           ['touch <file>', 'Create empty file'],
           ['rm <file>', 'Remove file'],
-          ['cat <file>', 'Display file contents'],
+          ['cat [file]', 'Display file contents or stdin'],
           ['nano <file>', 'Edit file with nano text editor'],
           ['adduser <user>', 'Add a user to the system (root only)'],
           ['userdel <user>', 'Delete a user from the system (root only)'],
@@ -245,10 +263,16 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
           ['cp <src> <dst>', 'Copy file'],
           ['mv <src> <dst>', 'Move/rename file'],
           ['chmod <mode> <file>', 'Change permissions (octal)'],
+          ['cmd < file', 'Input redirection from file'],
+          ['cmd > file', 'Output redirection to file'],
+          ['cmd >> file', 'Output append redirection to file'],
+          ['ping [opts] <host>', 'Send ICMP echo requests to network host'],
+          ['nmap [opts] <target>', 'Network exploration tool and security scanner'],
+          ['ifconfig [iface]', 'Configure network interfaces'],
           ['whoami', 'Show current user'],
           ['id', 'Show user/group IDs'],
           ['echo <text>', 'Display text'],
-          ['grep <pat> <file>', 'Search for pattern in file'],
+          ['grep <pat> [file]', 'Search for pattern in file or stdin'],
           ['find <path> -name <pat>', 'Find files by name'],
           ['save', 'Manually save filesystem state'],
           ['reset', 'Reset filesystem to initial state'],
@@ -772,6 +796,317 @@ SEE ALSO
         return; // Don't process further since we're using password prompts
       }
 
+      case 'ping': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = `ping: send ICMP ECHO_REQUEST to network hosts
+
+SYNOPSIS
+        ping [OPTIONS] destination
+
+DESCRIPTION
+        ping uses the ICMP protocol's mandatory ECHO_REQUEST datagram to
+        elicit an ICMP ECHO_RESPONSE from a host or gateway.
+
+OPTIONS
+        -c, --count COUNT
+                Stop after sending COUNT ECHO_REQUEST packets.
+
+        -t, --timeout TIMEOUT
+                Specify a timeout, in seconds, before ping exits.
+
+        -i, --interval INTERVAL
+                Wait INTERVAL seconds between sending each packet.
+
+        -h, --help
+                Display this help message.
+
+EXAMPLES
+        ping google.com
+                Ping google.com continuously.
+
+        ping -c 4 google.com
+                Ping google.com 4 times.
+
+        ping -t 10 192.168.1.1
+                Ping with 10 second timeout.
+
+SEE ALSO
+        traceroute(1), nslookup(1)
+`;
+          break;
+        }
+
+        if (args.length === 0) {
+          error = 'ping: usage error: Destination address required';
+          break;
+        }
+
+        let count = Infinity; // Ping continuously by default
+        let timeout = 0; // No timeout by default
+        let interval = 1; // 1 second between packets
+        let destination = '';
+
+        // Parse arguments
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          if (arg === '-c' || arg === '--count') {
+            const countStr = args[i + 1];
+            if (!countStr || isNaN(Number(countStr))) {
+              error = 'ping: invalid count value';
+              break;
+            }
+            count = parseInt(countStr);
+            i++; // Skip next arg
+          } else if (arg === '-t' || arg === '--timeout') {
+            const timeoutStr = args[i + 1];
+            if (!timeoutStr || isNaN(Number(timeoutStr))) {
+              error = 'ping: invalid timeout value';
+              break;
+            }
+            timeout = parseInt(timeoutStr);
+            i++; // Skip next arg
+          } else if (arg === '-i' || arg === '--interval') {
+            const intervalStr = args[i + 1];
+            if (!intervalStr || isNaN(Number(intervalStr))) {
+              error = 'ping: invalid interval value';
+              break;
+            }
+            interval = parseFloat(intervalStr);
+            if (interval < 0.2) {
+              error = 'ping: interval too short: minimum 0.2 seconds';
+              break;
+            }
+            i++; // Skip next arg
+          } else if (!arg.startsWith('-')) {
+            destination = arg;
+          } else {
+            error = `ping: invalid option '${arg}'`;
+            break;
+          }
+        }
+
+        if (error) break;
+
+        if (!destination) {
+          error = 'ping: usage error: Destination address required';
+          break;
+        }
+
+        // For now, simulate ping to any destination (will be enhanced with mock internet)
+        // In future, this will check if destination exists in mock internet
+        const simulatePing = (host: string, packetCount: number) => {
+          const lines: string[] = [];
+
+          // Resolve hostname to IP (simulated DNS)
+          let ip = host;
+          if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+            // Simulate DNS lookup - for now just use a fake IP
+            ip = `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+            lines.push(`PING ${host} (${ip}) 56(84) bytes of data.`);
+          } else {
+            lines.push(`PING ${host} (${host}) 56(84) bytes of data.`);
+          }
+
+          // Simulate packets
+          for (let i = 1; i <= packetCount; i++) {
+            const seq = i;
+            const ttl = 64; // Typical TTL
+            const time = (Math.random() * 50 + 1).toFixed(3); // Random time 1-51ms
+
+            if (Math.random() < 0.05) { // 5% chance of timeout
+              lines.push(`From ${ip} icmp_seq=${seq} Destination Host Unreachable`);
+            } else {
+              lines.push(`64 bytes from ${ip}: icmp_seq=${seq} ttl=${ttl} time=${time} ms`);
+            }
+          }
+
+          // Add summary
+          const loss = Math.floor(Math.random() * 3); // 0-2 packets lost randomly
+          const received = packetCount - loss;
+          lines.push('');
+          lines.push(`--- ${host} ping statistics ---`);
+          lines.push(`${packetCount} packets transmitted, ${received} received, ${loss > 0 ? Math.round((loss / packetCount) * 100) + '%' : '0%'} packet loss`);
+
+          return lines.join('\n');
+        };
+
+        // Set a reasonable default count if infinite
+        const actualCount = count === Infinity ? 4 : Math.min(count, 20); // Max 20 packets for UI
+        output = simulatePing(destination, actualCount);
+
+        break;
+      }
+
+      case 'ifconfig': {
+        if (args.includes('-h') || args.includes('--help')) {
+          output = `ifconfig - configure a network interface
+
+SYNOPSIS
+        ifconfig [INTERFACE]
+        ifconfig INTERFACE [OPTIONS]
+
+DESCRIPTION
+        Ifconfig is used to configure the kernel-resident network interfaces.
+        It is used at boot time to set up interfaces as necessary. After that,
+        it is usually only needed when debugging or when system tuning is
+        needed.
+
+        If no arguments are given, ifconfig displays the status of the
+        currently active interfaces. If a single interface argument is given,
+        it displays the status of the given interface only.
+
+        Ifconfig uses the ioctl access method to get the full address
+        information, which limits hardware addresses to 8 bytes.
+
+OPTIONS
+        INTERFACE
+                The name of the interface. This is usually a driver name
+                followed by a unit number, for example eth0 for the first
+                Ethernet interface.
+
+        up         This flag causes the interface to be activated.
+
+        down       This flag causes the driver for this interface to be shut
+                   down.
+
+        [-]arp     Enable or disable the use of the ARP protocol on this
+                   interface.
+
+        [-]promisc
+                   Enable or disable the promiscuous mode of the interface.
+
+        [-]allmulti
+                   Enable or disable all-multicast mode.
+
+        mtu N      This parameter sets the Maximum Transfer Unit of an
+                   interface.
+
+        dstaddr addr
+                   Set the remote IP address for a point-to-point link.
+
+        netmask addr
+                   Set the IP network mask for this interface.
+
+        add addr/prefixlen
+                   Add an IPv6 address to an interface.
+
+        del addr/prefixlen
+                   Remove an IPv6 address from an interface.
+
+        [-]broadcast [addr]
+                   If the address argument is given, set the protocol broadcast
+                   address for this interface. Otherwise, set (or clear) the
+                   IFF_BROADCAST flag for the interface.
+
+        [-]pointopoint [addr]
+                   This keyword enables the point-to-point mode of an
+                   interface, meaning that it is a direct link between two
+                   machines with nobody else listening on it.
+
+EXAMPLES
+        ifconfig
+                Display info about all network interfaces.
+
+        ifconfig eth0
+                Display info about eth0 interface only.
+
+        ifconfig eth0 up
+                Activate the eth0 interface.
+
+        ifconfig eth0 down
+                Deactivate the eth0 interface.
+
+SEE ALSO
+        ip(8), route(8), netstat(8)
+`;
+        } else {
+          const interfaceName = args[0];
+
+          // Simulate network interfaces
+          const interfaces = {
+            lo: {
+              name: 'lo',
+              flags: 'LOOPBACK,UP,LOWER_UP',
+              mtu: 65536,
+              inet: '127.0.0.1',
+              netmask: '255.0.0.0',
+              inet6: '::1/128',
+              scope: 'host',
+              rx: { packets: 1234, bytes: 56789, errors: 0, dropped: 0, overruns: 0, frame: 0 },
+              tx: { packets: 1234, bytes: 56789, errors: 0, dropped: 0, overruns: 0, carrier: 0, collisions: 0 }
+            },
+            eth0: {
+              name: 'eth0',
+              flags: 'UP,BROADCAST,RUNNING,MULTICAST',
+              mtu: 1500,
+              inet: '192.168.1.100',
+              netmask: '255.255.255.0',
+              broadcast: '192.168.1.255',
+              inet6: 'fe80::a00:27ff:fe4e:66a1/64',
+              ether: '08:00:27:4e:66:a1',
+              scope: 'link',
+              rx: { packets: 34567, bytes: 23456789, errors: 12, dropped: 0, overruns: 0, frame: 0 },
+              tx: { packets: 23456, bytes: 12345678, errors: 0, dropped: 0, overruns: 0, carrier: 0, collisions: 0 }
+            },
+            wlan0: {
+              name: 'wlan0',
+              flags: 'BROADCAST,MULTICAST',
+              mtu: 1500,
+              ether: '00:1b:63:84:45:e6',
+              inet6: 'fe80::21b:63ff:fe84:45e6/64',
+              scope: 'link',
+              rx: { packets: 0, bytes: 0, errors: 0, dropped: 0, overruns: 0, frame: 0 },
+              tx: { packets: 0, bytes: 0, errors: 0, dropped: 0, overruns: 0, carrier: 0, collisions: 0 }
+            }
+          };
+
+          if (interfaceName) {
+            // Show specific interface
+            const iface = interfaces[interfaceName as keyof typeof interfaces];
+            if (!iface) {
+              error = `ifconfig: error fetching interface information: Device not found`;
+            } else {
+              output = formatInterface(iface);
+            }
+          } else {
+            // Show all interfaces
+            const activeInterfaces = Object.values(interfaces).filter(iface =>
+              iface.flags.includes('UP') || iface.name === 'lo'
+            );
+            output = activeInterfaces.map(iface => formatInterface(iface)).join('\n\n');
+          }
+        }
+
+        function formatInterface(iface: any): string {
+          let result = `${iface.name}: flags=${iface.flags} mtu ${iface.mtu}\n`;
+
+          if (iface.inet) {
+            result += `        inet ${iface.inet}  netmask ${iface.netmask}`;
+            if (iface.broadcast) {
+              result += `  broadcast ${iface.broadcast}`;
+            }
+            result += '\n';
+          }
+
+          if (iface.inet6) {
+            result += `        inet6 ${iface.inet6}  scope ${iface.scope}\n`;
+          }
+
+          if (iface.ether) {
+            result += `        ether ${iface.ether}  txqueuelen 1000  (Ethernet)\n`;
+          }
+
+          result += `        RX packets ${iface.rx.packets}  bytes ${iface.rx.bytes}\n`;
+          result += `        RX errors ${iface.rx.errors}  dropped ${iface.rx.dropped}  overruns ${iface.rx.overruns}  frame ${iface.rx.frame}\n`;
+          result += `        TX packets ${iface.tx.packets}  bytes ${iface.tx.bytes}\n`;
+          result += `        TX errors ${iface.tx.errors}  dropped ${iface.tx.dropped}  overruns ${iface.tx.overruns}  carrier ${iface.tx.carrier}  collisions ${iface.tx.collisions}\n`;
+
+          return result.trim();
+        }
+
+        break;
+      }
+
       case 'whoami': {
         if (args.includes('--help')|| args.includes('-h')) {
           output = `whoami: print effective userid
@@ -1203,6 +1538,8 @@ DESCRIPTION
         patterns separated by newline characters, and grep prints each line
         that matches a pattern.
 
+        With no FILE, or when FILE is -, read standard input.
+
         In this simulation, only basic string matching is supported.
 
 OPTIONS
@@ -1230,14 +1567,27 @@ EXAMPLES
         grep -i Pattern file.txt
                 Case-insensitive search.
 
+        grep pattern
+                Search for "pattern" in standard input.
+
 SEE ALSO
         sed(1), awk(1)
 `;
           break;
         }
 
-        if (args.length < 2) {
-          error = 'grep: usage: grep <pattern> <file>';
+        if (args.length === 0) {
+          error = 'grep: usage: grep <pattern> [file]';
+        } else if (args.length === 1) {
+          // No file specified - read from stdin
+          const [pattern] = args;
+          if (stdinContent !== null) {
+            const lines = stdinContent.split('\n');
+            const matches = lines.filter(line => line.includes(pattern));
+            output = matches.join('\n');
+          } else {
+            error = 'grep: missing input (use grep <pattern> <file> or provide input via redirection)';
+          }
         } else {
           const [pattern, file] = args;
           const content = fs.readFile(file);
@@ -1489,6 +1839,253 @@ SEE ALSO
         break;
       }
 
+      case 'nmap': {
+        if (args.includes('-h') || args.includes('--help')) {
+          output = `Nmap 7.91 ( https://nmap.org )
+Usage: nmap [Scan Type(s)] [Options] {target specification}
+TARGET SPECIFICATION:
+  Can pass hostnames, IP addresses, networks, etc.
+  Ex: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  -iL <inputfilename>: Input from list of hosts/networks
+  -iR <num hosts>: Choose random targets
+  --exclude <host1[,host2][,host3],...>: Exclude hosts/networks
+  --excludefile <exclude_file>: Exclude list from file
+HOST DISCOVERY:
+  -sL: List Scan - simply list targets to scan
+  -sn: Ping Scan - disable port scan
+  -Pn: Treat all hosts as online -- skip host discovery
+  -PS/PA/PU/PY[portlist]: TCP SYN/ACK, UDP or SCTP discovery to given ports
+  -PE/PP/PM: ICMP echo, timestamp, and netmask request discovery probes
+  -PO[protocol list]: IP Protocol Ping
+  -n/-R: Never do DNS resolution/Always resolve [default: sometimes]
+  --dns-servers <serv1[,serv2],...>: Specify custom DNS servers
+  --system-dns: Use OS's DNS resolver
+  --traceroute: Trace hop path to each host
+SCAN TECHNIQUES:
+  -sS/sT/sA/sW/sM: TCP SYN/Connect()/ACK/Window/Maimon scans
+  -sU: UDP Scan
+  -sN/sF/sX: TCP Null, FIN, and Xmas scans
+  --scanflags <flags>: Customize TCP scan flags
+  -sI <zombie host[:probeport]>: Idle scan
+  -sY/sZ: SCTP INIT/COOKIE-ECHO scans
+  -sO: IP protocol scan
+  -b <FTP relay host>: FTP bounce scan
+PORT SPECIFICATION AND SCAN ORDER:
+  -p <port ranges>: Only scan specified ports
+    Ex: -p22; -p1-65535; -p U:53,111,137,T:21-25,80,139,8080,S:9
+  --exclude-ports <port ranges>: Exclude the specified ports from scanning
+  -F: Fast mode - Scan fewer ports than the default scan
+  -r: Scan ports consecutively - don't randomize
+  --top-ports <number>: Scan <number> most common ports
+  --port-ratio <ratio>: Scan ports more common than <ratio>
+SERVICE/VERSION DETECTION:
+  -sV: Probe open ports to determine service/version info
+  --version-intensity <level>: Set from 0 (light) to 9 (try all probes)
+  --version-light: Limit to most likely probes (intensity 2)
+  --version-all: Try every single probe (intensity 9)
+  --version-trace: Show detailed version scan activity (for debugging)
+SCRIPT SCAN:
+  -sC: equivalent to --script=default
+  --script=<Lua scripts>: <Lua scripts> is a comma separated list of
+           directories, script-files or script-categories
+  --script-args=<n1=v1,[n2=v2,...]>: provide arguments to scripts
+  --script-args-file=filename: provide NSE script args in a file
+  --script-trace: Show all data sent and received
+  --script-updatedb: Update the script database
+  --script-help=<Lua scripts>: Show help about scripts.
+           <Lua scripts> is a comma separated list of script-files or
+           script-categories.
+OS DETECTION:
+  -O: Enable OS detection
+  --osscan-limit: Limit OS detection to promising targets
+  --osscan-guess: Guess OS more aggressively
+TIMING AND PERFORMANCE:
+  Options which take <time> are in seconds, or append 'ms' (milliseconds),
+  's' (seconds), 'm' (minutes), or 'h' (hours) to the value (e.g. 30m).
+  -T<0-5>: Set timing template (higher is faster)
+  --min-hostgroup/max-hostgroup <size>: Parallel host scan group sizes
+  --min-parallelism/max-parallelism <numprobes>: Probe parallelization
+  --min-rtt-timeout/max-rtt-timeout/initial-rtt-timeout <time>: Specifies
+      probe round trip time.
+  --max-retries <tries>: Caps number of port scan probe retransmissions.
+  --host-timeout <time>: Give up on target after this long
+  --scan-delay/--max-scan-delay <time>: Adjust delay between probes
+  --min-rate <number>: Send packets no slower than <number> per second
+  --max-rate <number>: Send packets no faster than <number> per second
+FIREWALL/IDS EVASION AND SPOOFING:
+  -f; --mtu <val>: fragment packets (optionally w/given MTU)
+  -D <decoy1,decoy2[,ME],...>: Cloak a scan with decoys
+  -S <IP_Address>: Spoak source address
+  -e <iface>: Use specified interface
+  -g/--source-port <portnum>: Use given port number
+  --proxies <url1,[url2],...>: Relay connections through HTTP/SOCKS4 proxies
+  --data <hex string>: Append a custom payload to sent packets
+  --data-string <string>: Append a custom ASCII string to sent packets
+  --data-length <num>: Append random data to sent packets
+  --ip-options <options>: Send packets with specified ip options
+  --ttl <val>: Set IP time-to-live field
+  --spoof-mac <mac address/prefix/vendor name>: Spoof your MAC address
+  --badsum: Send packets with a bogus TCP/UDP/SCTP checksum
+OUTPUT:
+  -oN/-oX/-oS/-oG <file>: Output scan in normal, XML, s|<rIpt kIddi3,
+     and Grepable format, respectively, to the given filename.
+  -oA <basename>: Output in the three major formats at once
+  -v: Increase verbosity level (use -vv or more for greater effect)
+  -d: Increase debugging level (use -dd or more for greater effect)
+  -oN/-oX/-oS/-oG <file>: Output scan in normal, XML, s|<rIpt kIddi3,
+     and Grepable format, respectively, to the given filename.
+  -oA <basename>: Output in the three major formats at once
+  -v: Increase verbosity level (use -vv or more for greater effect)
+  -d: Increase debugging level (use -dd or more for greater effect)
+  --reason: Display the reason a port is in a particular state
+  --open: Only show open (or possibly open) ports
+  --packet-trace: Show all packets sent and received
+  --iflist: Print host interfaces and routes (for debugging)
+  --append-output: Append to rather than clobber specified output files
+  --resume <filename>: Resume an aborted scan
+  --stylesheet <path/URL>: XSL stylesheet to transform XML output to HTML
+  --webxml: Reference stylesheet from Nmap.Org for more portable XML
+  --no-stylesheet: Prevent associating of XSL stylesheet w/XML output
+MISC:
+  -6: Enable IPv6 scanning
+  -A: Enable OS detection, version detection, script scanning, and traceroute
+  --datadir <dirname>: Specify custom Nmap data file location
+  --send-eth/--send-ip: Send using raw ethernet frames or IP packets
+  --privileged: Assume that the user is fully privileged
+  --unprivileged: Assume that the user lacks raw socket privileges
+  -V: Print version number
+  -h: Print this help summary page.
+EXAMPLES:
+  nmap -v -A scanme.nmap.org
+  nmap -v -sn 192.168.0.0/16 10.0.0.0/8
+  nmap -v -iR 10000 -Pn -p 80
+SEE THE MAN PAGE (https://nmap.org/book/man.html) FOR MORE OPTIONS AND EXAMPLES`;
+        } else if (!isPackageInstalled('nmap')) {
+          error = 'nmap: command not found\nTry: apt install nmap';
+        } else {
+          // Parse nmap arguments
+          let targets: string[] = [];
+          let scanType = 'syn'; // Default scan type
+          let portRange = '1-1000'; // Default port range
+          let timingTemplate = 3; // Default timing
+          let verbose = false;
+          let osDetection = false;
+          let versionDetection = false;
+          let scriptScan = false;
+
+          // Simple argument parsing
+          for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            if (arg === '-sn' || arg === '-sP') {
+              scanType = 'ping';
+            } else if (arg === '-sS') {
+              scanType = 'syn';
+            } else if (arg === '-sT') {
+              scanType = 'connect';
+            } else if (arg === '-sU') {
+              scanType = 'udp';
+            } else if (arg === '-sV') {
+              versionDetection = true;
+            } else if (arg === '-O') {
+              osDetection = true;
+            } else if (arg === '-sC') {
+              scriptScan = true;
+            } else if (arg === '-A') {
+              osDetection = true;
+              versionDetection = true;
+              scriptScan = true;
+            } else if (arg === '-p') {
+              portRange = args[i + 1] || portRange;
+              i++; // Skip next arg
+            } else if (arg.startsWith('-T')) {
+              timingTemplate = parseInt(arg.substring(2)) || 3;
+            } else if (arg === '-v' || arg === '-vv') {
+              verbose = true;
+            } else if (!arg.startsWith('-')) {
+              targets.push(arg);
+            }
+          }
+
+          if (targets.length === 0) {
+            error = 'nmap: missing target specification\nTry: nmap --help';
+            break;
+          }
+
+          // Simulate nmap scan results
+          const simulateNmapScan = (target: string, type: string) => {
+            const lines: string[] = [];
+
+            lines.push(`Starting Nmap ${AVAILABLE_PACKAGES.nmap.version} ( https://nmap.org ) at ${new Date().toISOString().split('T')[0].replace(/-/g, '/')} ${new Date().toTimeString().split(' ')[0]} EDT`);
+
+            if (type === 'ping') {
+              // Ping scan
+              const ip = target.match(/^\d+\.\d+\.\d+\.\d+$/) ? target : `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+              lines.push(`Nmap scan report for ${target} (${ip})`);
+              lines.push(`Host is up (${(Math.random() * 5 + 0.1).toFixed(2)}s latency).`);
+              lines.push(`Nmap done: 1 IP address (1 host up) scanned in ${Math.random().toFixed(2)} seconds`);
+            } else {
+              // Port scan
+              const ip = target.match(/^\d+\.\d+\.\d+\.\d+$/) ? target : `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+              lines.push(`Nmap scan report for ${target} (${ip})`);
+              lines.push(`Host is up (${(Math.random() * 5 + 0.1).toFixed(2)}s latency).`);
+
+              if (type !== 'ping') {
+                lines.push('Not shown: 997 closed ports');
+                lines.push('PORT      STATE    SERVICE');
+
+                // Generate some random open ports
+                const commonPorts = [
+                  { port: 22, service: 'ssh', version: 'OpenSSH 8.2p1 Ubuntu 4ubuntu0.3' },
+                  { port: 80, service: 'http', version: 'Apache httpd 2.4.41' },
+                  { port: 443, service: 'https', version: 'Apache httpd 2.4.41' },
+                  { port: 53, service: 'domain', version: 'ISC BIND 9.16.1' },
+                  { port: 25, service: 'smtp', version: 'Postfix smtpd' },
+                  { port: 110, service: 'pop3', version: 'Dovecot pop3d' },
+                  { port: 143, service: 'imap', version: 'Dovecot imapd' },
+                  { port: 993, service: 'imaps', version: 'Dovecot imapd' },
+                  { port: 995, service: 'pop3s', version: 'Dovecot pop3d' }
+                ];
+
+                const openPorts = commonPorts.filter(() => Math.random() < 0.4); // 40% chance each port is open
+
+                openPorts.forEach(({ port, service, version }) => {
+                  let state = 'open';
+                  let versionInfo = '';
+
+                  if (versionDetection) {
+                    versionInfo = ` ${version}`;
+                  }
+
+                  lines.push(`${port}/tcp   ${state}    ${service}${versionInfo}`);
+                });
+              }
+
+              if (osDetection) {
+                lines.push('');
+                lines.push('OS detection performed. Please report any incorrect results at https://nmap.org/submit/ .');
+                lines.push('Nmap scan report for example.com (93.184.216.34)');
+                lines.push('OS details: Linux 3.10 - 4.11');
+                const osMatches = [
+                  'Linux 3.10 - 4.11',
+                  'Linux 4.4',
+                  'Linux 4.9'
+                ];
+                osMatches.forEach((os, index) => {
+                  lines.push(`${index + 1}. ${os}`);
+                });
+              }
+
+              lines.push(`Nmap done: 1 IP address (1 host up) scanned in ${(Math.random() * 10 + 1).toFixed(2)} seconds`);
+            }
+
+            return lines.join('\n');
+          };
+
+          output = targets.map(target => simulateNmapScan(target, scanType)).join('\n\n');
+        }
+        break;
+      }
+
       case 'apt': {
         if (args.includes('--help') || args.includes('-h')) {
           output = `apt - command-line package manager
@@ -1607,6 +2204,9 @@ SEE ALSO
             if (packageName === 'nano') {
               fs.createNewFile(`/bin/nano.bin`);
               fs.writeFile(`/bin/nano.bin`, '#!/bin/bash\n# nano text editor binary\n');
+            } else if (packageName === 'nmap') {
+              fs.createNewFile(`/bin/nmap.bin`);
+              fs.writeFile(`/bin/nmap.bin`, '#!/bin/bash\n# nmap network scanner binary\n');
             }
             break;
           }
@@ -1648,6 +2248,8 @@ SEE ALSO
             // Remove binary for the package if needed
             if (packageName === 'nano') {
               fs.remove(`/bin/nano.bin`);
+            } else if (packageName === 'nmap') {
+              fs.remove(`/bin/nmap.bin`);
             }
 
             // Remove placeholder files

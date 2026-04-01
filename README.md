@@ -62,7 +62,26 @@ Currently, this is a linux terminal simulator. It will be more... I have many th
         - make sure it is not wide open access
 1.8 rev & imp
     mid version push
-    -
+    next bot push. I think the last one may have helped with something.
+    - implemented ping command as built-in
+        - supports -c (count), -t (timeout), -i (interval) options
+        - simulates ICMP echo requests with realistic output format
+        - ready for future mock internet integration
+            * fake output will have to be replaced when I figure out the in game internet.
+    - implemented nmap as APT package
+        - supports various scan types (-sn ping scan, -sS SYN scan, -sT connect scan, -sU UDP scan)
+        - service version detection (-sV)
+        - OS detection (-O)
+        - script scanning (-sC, -A for comprehensive scan)
+        - realistic output with open ports, service versions, and OS fingerprints
+        - ready for integration with mock internet system
+            *BS will have to be removed when actual info is available.
+        - implemented ifconfig as built-in command
+            - displays network interface information (IP, MAC, netmask, status)
+            - shows realistic interface details (eth0, lo, wlan0)
+            - includes packet statistics (RX/TX packets, errors, etc.)
+            - supports interface-specific queries
+            - ready for future network configuration and mock internet features
     x figure out email, browser, etcetera
 
 

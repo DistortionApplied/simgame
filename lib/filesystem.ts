@@ -555,7 +555,7 @@ export class FakeFileSystem {
     const requiredManPages = [
       'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat', 'nano', 'apt', 'sudo', 'su',
       'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'man', 'help', 'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd'
+      'man', 'help', 'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'nmap', 'ifconfig'
     ];
 
     for (const cmd of requiredManPages) {
@@ -1571,6 +1571,305 @@ EXAMPLES
 
 SEE ALSO
         apt-get(8), apt-cache(8), sources.list(5)
+`);
+        break;
+
+      case 'ping':
+        this.createFile('/usr/share/man/man1/ping.1', `PING(1)                        User Commands                       PING(1)
+
+NAME
+        ping - send ICMP ECHO_REQUEST to network hosts
+
+SYNOPSIS
+        ping [OPTIONS] destination
+
+DESCRIPTION
+        ping uses the ICMP protocol's mandatory ECHO_REQUEST datagram to
+        elicit an ICMP ECHO_RESPONSE from a host or gateway. ECHO_REQUEST
+        datagrams (pings) have an IP and ICMP header, followed by a struct
+        time stamp, and then an arbitrary number of pad bytes used to fill
+        out the packet.
+
+OPTIONS
+        -c, --count COUNT
+                Stop after sending COUNT ECHO_REQUEST packets. With deadline
+                option, ping waits for COUNT ECHO_REPLY packets, until the
+                timeout expires.
+
+        -i, --interval INTERVAL
+                Wait INTERVAL seconds between sending each packet. The default
+                is to wait for one second between each packet normally, or not
+                to wait in flood mode. Only super-user may set interval to
+                values less than 0.2 seconds.
+
+        -t, --timeout TIMEOUT
+                Specify a timeout, in seconds, before ping exits regardless
+                of how many packets have been sent or received. In this case
+                ping does not stop after count packet are sent, it waits
+                either for deadline expire or until count probes are answered
+                or for some error notification from network.
+
+        -h, --help
+                Display help message and exit.
+
+EXAMPLES
+        ping google.com
+                Ping the host google.com.
+
+        ping -c 4 google.com
+                Ping the host google.com 4 times.
+
+        ping -i 0.5 192.168.1.1
+                Ping with 0.5 second intervals.
+
+SEE ALSO
+        traceroute(1), nslookup(1), netstat(1)
+`);
+        break;
+
+      case 'nmap':
+        this.createFile('/usr/share/man/man1/nmap.1', `NMAP(1)                          Nmap Reference Guide                        NMAP(1)
+
+NAME
+        nmap - Network exploration tool and security / port scanner
+
+SYNOPSIS
+        nmap [Scan Type(s)] [Options] {target specification}
+
+DESCRIPTION
+        Nmap ("Network Mapper") is an open source tool for network exploration
+        and security auditing. It was designed to rapidly scan large networks,
+        although it works fine against single hosts. Nmap uses raw IP packets
+        in novel ways to determine what hosts are available on the network,
+        what services (application name and version) those hosts are offering,
+        what operating systems (and OS versions) they are running, what type of
+        packet filters/firewalls are in use, and dozens of other
+        characteristics. While Nmap is commonly used for security audits, many
+        systems and network administrators find it useful for routine tasks
+        such as network inventory, managing service upgrade schedules, and
+        monitoring host or service uptime.
+
+TARGET SPECIFICATION:
+        Everything on the Nmap command-line that isn't an option (or option
+        argument) is treated as a target host specification. The simplest case
+        is to specify a target IP address or hostname for scanning.
+
+HOST DISCOVERY:
+        One of the very first steps in any network reconnaissance mission is to
+        reduce a (sometimes huge) set of IP ranges into a list of active or
+        interesting hosts. Scanning every port of every single IP address is
+        slow and usually unnecessary. What makes a host interesting depends
+        greatly on the scan purposes. Network administrators may only be
+        interested in hosts running a certain service, while security auditors
+        may care about every single device with an IP address. System
+        administrators often consider hosts simply being up enough
+        information.
+
+SCAN TECHNIQUES:
+        -sS (TCP SYN scan)
+                SYN scan is the default and most popular scan option for good
+                reasons. It can be performed quickly, scanning thousands of
+                ports per second on a fast network not hampered by restrictive
+                firewalls. SYN scan is relatively unobtrusive and stealthy,
+                since it never completes TCP connections.
+
+        -sT (TCP connect scan)
+                TCP connect scan is the default TCP scan type when SYN scan is
+                not an option. This is the case when a user does not have raw
+                packet privileges or is scanning IPv6 networks.
+
+        -sU (UDP scans)
+                While most popular services on the Internet run over the TCP
+                protocol, UDP services are widely deployed. DNS, SNMP, and DHCP
+                (registered ports 53, 161/162, and 67/68) are three of the most
+                common. Because UDP scanning is generally slower and more
+                difficult than TCP, some security auditors ignore these ports.
+
+PORT SPECIFICATION:
+        -p <port ranges> (Only scan specified ports)
+                This option specifies which ports you want to scan and
+                overrides the default. Individual port numbers are OK, as are
+                ranges separated by a hyphen (e.g. 1-1023). The beginning and/or
+                end values of a range may be omitted, causing Nmap to use 1 and
+                65535, respectively.
+
+SERVICE DETECTION:
+        -sV (Version detection)
+                Enables version detection, as discussed above. Alternatively,
+                you can use -A, which enables version detection among other
+                things.
+
+        --version-light (Limit to most likely probes)
+                Makes version scanning much faster by limiting probes to the
+                most likely ones for each port.
+
+OS DETECTION:
+        -O (Enable OS detection)
+                Enables OS detection, as discussed above. Alternatively, you
+                can use -A, which enables OS detection among other things.
+
+TIMING:
+        -T<0-5> (Set timing template)
+                These are convenience options that set multiple timing options
+                at once. Timing template 4 is recommended for decent broadband,
+                while template 5 is good for very fast networks or when you
+                don't mind sacrificing accuracy for speed.
+
+OUTPUT:
+        -oN <filespec> (Output scan in normal format to the given filename)
+
+        -oX <filespec> (Output scan in XML format to the given filename)
+
+        -oG <filespec> (Output scan in Grepable format to the given filename)
+
+        -oA <basename> (Output in the three major formats at once)
+
+EXAMPLES
+        nmap -v -A scanme.nmap.org
+                This is a comprehensive scan that will attempt to determine the
+                OS type, all open ports, and versions of programs running on
+                them.
+
+        nmap -sn 192.168.0.0/16 10.0.0.0/8
+                This will ping scan all addresses in the 192.168.0.0/16 and
+                10.0.0.0/8 subnets.
+
+        nmap -iR 10000 -Pn -p 80
+                This will randomly select 10,000 hosts and scan them for web
+                servers (port 80).
+
+BUGS
+        Like its author, Nmap isn't perfect. But you can help make it better by
+        sending bug reports or even writing patches. If Nmap doesn't behave
+        the way you expect, first upgrade to the latest version available from
+        https://nmap.org. If the problem persists, do some research to
+        determine whether it has already been discovered and addressed. Try
+        searching the nmap-dev archives at http://seclists.org/ or browsing
+        the Nmap bug database at https://nmap.org/book/man-bugs.html.
+
+AUTHOR
+        Gordon Lyon (Fyodor) <fyodor@nmap.org>
+        (https://nmap.org/book/credits.html lists other contributors)
+
+LEGAL NOTICES
+        When using Nmap for illegal purposes, nothing in this license prevents
+        you from going to jail. Don't do anything I would disapprove of.
+
+SEE ALSO
+        The Nmap documentation is available at https://nmap.org/docs.html
+`);
+        break;
+
+      case 'ifconfig':
+        this.createFile('/usr/share/man/man1/ifconfig.1', `IFCONFIG(1)                Linux Programmer's Manual                IFCONFIG(1)
+
+NAME
+        ifconfig - configure a network interface
+
+SYNOPSIS
+        ifconfig [INTERFACE]
+        ifconfig INTERFACE [OPTIONS | ADDRESS]
+
+DESCRIPTION
+        Ifconfig is used to configure the kernel-resident network interfaces.
+        It is used at boot time to set up interfaces as necessary. After that,
+        it is usually only needed when debugging or when system tuning is
+        needed.
+
+        If no arguments are given, ifconfig displays the status of the
+        currently active interfaces. If a single interface argument is given,
+        it displays the status of the given interface only.
+
+OPTIONS
+        interface
+                The name of the interface. This is usually a driver name
+                followed by a unit number, for example eth0 for the first
+                Ethernet interface. If the driver module is not loaded then
+                the interface will not exist and ifconfig will display an
+                error.
+
+        up         This flag causes the interface to be activated. It is
+                   implicitly specified if an address is assigned to the
+                   interface.
+
+        down       This flag causes the driver for this interface to be shut
+                   down.
+
+        [-]arp     Enable or disable the use of the ARP protocol on this
+                   interface.
+
+        [-]promisc
+                   Enable or disable the promiscuous mode of the interface.
+                   If selected, all packets on the network will be received
+                   by the interface.
+
+        [-]allmulti
+                   Enable or disable all-multicast mode. If selected, all
+                   multicast packets on the network will be received by the
+                   interface.
+
+        mtu N      This parameter sets the Maximum Transfer Unit of an
+                   interface.
+
+        dstaddr addr
+                   Set the remote IP address for a point-to-point link
+                   (such as PPP). This keyword is now obsolete; use the
+                   pointopoint keyword instead.
+
+        netmask addr
+                   Set the IP network mask for this interface. This value
+                   defaults to the usual class A, B or C network mask (as
+                   derived from the interface IP address), but it can be set
+                   to any value.
+
+        add addr/prefixlen
+                   Add an IPv6 address to an interface.
+
+        del addr/prefixlen
+                   Remove an IPv6 address from an interface.
+
+        [-]broadcast [addr]
+                   If the address argument is given, set the protocol broadcast
+                   address for this interface. Otherwise, set (or clear) the
+                   IFF_BROADCAST flag for the interface.
+
+        [-]pointopoint [addr]
+                   This keyword enables the point-to-point mode of an interface,
+                   meaning that it is a direct link between two machines with
+                   nobody else listening on it.
+
+        hw class address
+                   Set the hardware address of this interface, if the device
+                   driver supports this operation. The keyword must be followed
+                   by the name of the hardware class and the printable ASCII
+                   equivalent of the hardware address. Hardware classes
+                   currently supported include ether (Ethernet), ax25 (AMPR
+                   AX.25), ARCnet and netrom (AMPR NET/ROM).
+
+        multicast  Set the multicast flag on the interface. This should not
+                   normally be needed as the drivers set the flag correctly
+                   themselves.
+
+        address    The IP address to be assigned to this interface.
+
+        txqueuelen length
+                   Set the transmit queue length of the device. This is
+                   useful to set to small values for slower devices with a
+                   high latency (modem links, ISDN) to prevent fast bulk
+                   transfers from deteriorating interactivity of telnet, etc.
+
+NOTES
+        Since kernel release 2.2, ifconfig is obsolete and unmaintained. For
+        replacement check ip addr and ip link. For statistics use ip -s link.
+
+SEE ALSO
+        ip(8), route(8), netstat(8)
+
+AUTHOR
+        Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
+        Alan Cox, <Alan.Cox@linux.org>
+        Phil Blundell, <Philip.Blundell@pobox.com>
+        Andi Kleen
 `);
         break;
 
