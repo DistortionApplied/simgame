@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Let's add a simple terminal game to be available through apt.
+ Review the game program with the goal of understanding the expected behavior of the program. The game needs a mock internet. I want this to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 
 1.2 revisions and improvements
