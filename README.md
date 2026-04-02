@@ -41,6 +41,43 @@ To be done:
 
  Review the game program with the goal of understanding the expected behavior of the program. The game needs a mock internet. I want this to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
+ no multiplayer needed. So a single player world, persistent through saves, but like grey hack, It should be different every new game. I like how the internet works in grey hack single player. I want it as close to that as possible. start with step 1, Basic data structures and DNS, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
+
+
+# Context - Current State and Recent Changes
+
+## Project Overview
+Linux terminal simulation game with mock internet functionality inspired by Grey Hack.
+
+## Recent Changes
+- **2026-04-02**: Created basic mock internet data structures and DNS system in `lib/internet.ts`
+  - Added MockInternet class with procedural generation
+  - Implemented Website, Server, Service interfaces
+  - Added DNS resolution for domains to IPs
+  - Created persistent storage per user in localStorage
+  - Generated sample websites (Google, GitHub, etc.) and servers with realistic services
+  - No interference with existing game functionality
+
+## Current State
+- Core game: Linux terminal simulator with filesystem, users, packages, networking tools
+- Internet: Basic data structures implemented, ready for command integration
+- Branch: internet_attempt
+- User: Single-player persistent world, procedurally generated per new game
+
+## Next Steps
+1. Integrate mock internet with existing commands (ping, nmap)
+
+---DO NOT DO THESE STEPS YET---
+2. Add new commands (browse, ssh, telnet, ftp, whois, dig)
+3. Create UI components for browsing and connections
+4. Add email/chat systems
+
+## Focus Areas
+- Maintain backward compatibility
+- Ensure all networking is simulated, no real connections
+- Keep Grey Hack-like single-player experience
+
+
 
 1.2 revisions and improvements
     - implemented man
@@ -137,7 +174,8 @@ To be done:
     - merge back to main
     - added snake available through apt
     - pushed for new agent
-
+    - started the mock internet (I think)
+    - 
 
     x figure out email, browser, etcetera
 
