@@ -665,6 +665,96 @@ Examples:
   man ls      Display manual for ls command
   man chmod   Display manual for chmod command
 `,
+    save: `save - save filesystem state
+
+SYNOPSIS
+        save
+
+DESCRIPTION
+        Save the current filesystem state to localStorage for persistence
+        across browser sessions.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        save
+                Save the current filesystem state.
+
+SEE ALSO
+        reset(1)
+`,
+    reset: `reset - reset filesystem to initial state
+
+SYNOPSIS
+        reset
+
+DESCRIPTION
+        Reset the filesystem to its initial state, removing all user-created
+        files and directories. This also clears the saved state.
+
+        Note: This only clears the filesystem data. To fully reset the
+        simulation, refresh the page.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        reset
+                Reset the filesystem to initial state.
+
+SEE ALSO
+        save(1)
+`,
+    debug: `debug - show filesystem debug information
+
+SYNOPSIS
+        debug
+
+DESCRIPTION
+        Display debugging information about the current filesystem state,
+        including current user details, working directory, and counts of
+        users and groups in the system.
+
+        This command is useful for developers and administrators to inspect
+        the internal state of the simulation.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        debug
+                Show current filesystem debug information.
+
+SEE ALSO
+        whoami(1), pwd(1), id(1)
+`,
+    reboot: `reboot - reboot the system
+
+SYNOPSIS
+        reboot
+
+DESCRIPTION
+        Reboot the system by restarting the simulation from the boot screen.
+        This will reset the terminal session and return to the initial boot
+        sequence.
+
+        Note: This performs a soft reboot within the simulation.
+
+OPTIONS
+        -h, --help
+                Show this help message.
+
+EXAMPLES
+        reboot
+                Reboot the system.
+
+SEE ALSO
+        clear(1), reset(1)
+`,
     // nmap and apt have their own help in lib files, so not included here
   };
 
