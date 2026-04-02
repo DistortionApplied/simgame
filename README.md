@@ -176,7 +176,9 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
     - pushed for new agent
     - started the mock internet (I think)
     - pushed for new agent
-    - 
+    - integrated mock internet with exisiting commands
+    - Pushed pre browser
+    
 
     x figure out email, browser, etcetera
 

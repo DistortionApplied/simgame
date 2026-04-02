@@ -6,6 +6,7 @@ import { executeNmap } from '../lib/nmap';
 import { executeApt, AVAILABLE_PACKAGES, createIsPackageInstalled } from '../lib/apt';
 import { getCommandHelp } from '../lib/commandHelp';
 import { executeReboot } from '../lib/reboot';
+import { MockInternet } from '../lib/internet';
 
 export interface TerminalLine {
   type: 'input' | 'output' | 'error';
@@ -48,6 +49,7 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
     }
     return filesystem;
   });
+  const [mockInternet] = useState(() => setupData ? new MockInternet(setupData) : null);
   const [currentUser, setCurrentUser] = useState(() => fs.getCurrentUser());
   const [sessionUser, setSessionUser] = useState(() => fs.getCurrentUser());
   const [workingDirectory, setWorkingDirectory] = useState(fs.getWorkingDirectory());
@@ -658,20 +660,68 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
           break;
         }
 
-        // For now, simulate ping to any destination (will be enhanced with mock internet)
-        // In future, this will check if destination exists in mock internet
-        const simulatePing = (host: string, packetCount: number) => {
+        // Use mock internet for ping if available
+        if (!mockInternet) {
+          // Fallback to old simulation
+          const simulatePing = (host: string, packetCount: number) => {
+            const lines: string[] = [];
+
+            let ip = host;
+            if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+              ip = `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+              lines.push(`PING ${host} (${ip}) 56(84) bytes of data.`);
+            } else {
+              lines.push(`PING ${host} (${host}) 56(84) bytes of data.`);
+            }
+
+            // Simulate packets
+            for (let i = 1; i <= packetCount; i++) {
+              const seq = i;
+              const ttl = 64; // Typical TTL
+              const time = (Math.random() * 50 + 1).toFixed(3); // Random time 1-51ms
+
+              if (Math.random() < 0.05) { // 5% chance of timeout
+                lines.push(`From ${ip} icmp_seq=${seq} Destination Host Unreachable`);
+              } else {
+                lines.push(`64 bytes from ${ip}: icmp_seq=${seq} ttl=${ttl} time=${time} ms`);
+              }
+            }
+
+            // Add summary
+            const loss = Math.floor(Math.random() * 3); // 0-2 packets lost randomly
+            const received = packetCount - loss;
+            lines.push('');
+            lines.push(`--- ${host} ping statistics ---`);
+            lines.push(`${packetCount} packets transmitted, ${received} received, ${loss > 0 ? Math.round((loss / packetCount) * 100) + '%' : '0%'} packet loss`);
+
+            return lines.join('\n');
+          };
+
+          const actualCount = count === Infinity ? 4 : Math.min(count, 20); // Max 20 packets for UI
+          output = simulatePing(destination, actualCount);
+          break;
+        }
+
+        // Resolve hostname to IP using mock internet DNS
+        let ip = destination;
+        if (!/^\d+\.\d+\.\d+\.\d+$/.test(destination)) {
+          ip = mockInternet.resolveDomain(destination) || '';
+          if (!ip) {
+            error = `ping: ${destination}: Name or service not known`;
+            break;
+          }
+        }
+
+        // Check if host is reachable
+        if (!mockInternet.isHostReachable(ip)) {
+          error = `ping: ${destination}: Host is unreachable`;
+          break;
+        }
+
+        const simulatePing = (host: string, resolvedIP: string, packetCount: number) => {
           const lines: string[] = [];
 
-          // Resolve hostname to IP (simulated DNS)
-          let ip = host;
-          if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-            // Simulate DNS lookup - for now just use a fake IP
-            ip = `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
-            lines.push(`PING ${host} (${ip}) 56(84) bytes of data.`);
-          } else {
-            lines.push(`PING ${host} (${host}) 56(84) bytes of data.`);
-          }
+          lines.push(`PING ${host} (${resolvedIP}) 56(84) bytes of data.`);
 
           // Simulate packets
           for (let i = 1; i <= packetCount; i++) {
@@ -680,9 +730,9 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
             const time = (Math.random() * 50 + 1).toFixed(3); // Random time 1-51ms
 
             if (Math.random() < 0.05) { // 5% chance of timeout
-              lines.push(`From ${ip} icmp_seq=${seq} Destination Host Unreachable`);
+              lines.push(`From ${resolvedIP} icmp_seq=${seq} Destination Host Unreachable`);
             } else {
-              lines.push(`64 bytes from ${ip}: icmp_seq=${seq} ttl=${ttl} time=${time} ms`);
+              lines.push(`64 bytes from ${resolvedIP}: icmp_seq=${seq} ttl=${ttl} time=${time} ms`);
             }
           }
 
@@ -698,7 +748,7 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
 
         // Set a reasonable default count if infinite
         const actualCount = count === Infinity ? 4 : Math.min(count, 20); // Max 20 packets for UI
-        output = simulatePing(destination, actualCount);
+        output = simulatePing(destination, ip, actualCount);
 
         break;
       }
@@ -709,7 +759,11 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
         } else {
           const interfaceName = args[0];
 
-          // Simulate network interfaces
+          // Get network info from mock internet
+          const playerIP = mockInternet?.getPlayerIP();
+          const gatewayIP = mockInternet?.getGatewayIP();
+
+          // Simulate network interfaces using mock internet data
           const interfaces = {
             lo: {
               name: 'lo',
@@ -726,9 +780,9 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
               name: 'eth0',
               flags: 'UP,BROADCAST,RUNNING,MULTICAST',
               mtu: 1500,
-              inet: '192.168.1.100',
+              inet: playerIP || '192.168.1.100',
               netmask: '255.255.255.0',
-              broadcast: '192.168.1.255',
+              broadcast: playerIP ? playerIP.replace(/\d+$/, '255') : '192.168.1.255',
               inet6: 'fe80::a00:27ff:fe4e:66a1/64',
               ether: '08:00:27:4e:66:a1',
               scope: 'link',
@@ -1186,7 +1240,7 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
       }
 
       case 'nmap': {
-        const result = executeNmap(args, setupData, isPackageInstalled, AVAILABLE_PACKAGES);
+        const result = executeNmap(args, setupData, isPackageInstalled, AVAILABLE_PACKAGES, mockInternet);
         output = result.output || '';
         error = result.error || '';
         break;

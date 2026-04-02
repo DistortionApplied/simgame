@@ -1,8 +1,11 @@
+import { MockInternet } from './internet';
+
 export function executeNmap(
   args: string[],
   setupData: any,
   isPackageInstalled: (name: string) => boolean,
-  AVAILABLE_PACKAGES: any
+  AVAILABLE_PACKAGES: any,
+  mockInternet: MockInternet | null
 ): { output?: string; error?: string } {
   if (args.includes('-h') || args.includes('--help')) {
     return {
@@ -176,66 +179,105 @@ SEE THE MAN PAGE (https://nmap.org/book/man.html) FOR MORE OPTIONS AND EXAMPLES`
       return { error: 'nmap: missing target specification\nTry: nmap --help' };
     }
 
-    // Simulate nmap scan results
+    // Simulate nmap scan results using mock internet
     const simulateNmapScan = (target: string, type: string) => {
       const lines: string[] = [];
 
       lines.push(`Starting Nmap ${AVAILABLE_PACKAGES.nmap.version} ( https://nmap.org ) at ${new Date().toISOString().split('T')[0].replace(/-/g, '/')} ${new Date().toTimeString().split(' ')[0]} EDT`);
 
+      // Resolve target to IP
+      let ip = target;
+      if (!/^\d+\.\d+\.\d+\.\d+$/.test(target)) {
+        if (mockInternet) {
+          ip = mockInternet.resolveDomain(target) || target;
+        } else {
+          ip = `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+        }
+      }
+
+      // Check if host exists in mock internet
+      const server = mockInternet ? mockInternet.getServerByIP(ip) : null;
+      const website = mockInternet ? mockInternet.getWebsiteByIP(ip) : null;
+      const isReachable = mockInternet ? mockInternet.isHostReachable(ip) : true;
+
+      if (!isReachable) {
+        lines.push(`Nmap scan report for ${target} (${ip})`);
+        lines.push(`Host is down.`);
+        lines.push(`Nmap done: 1 IP address (0 hosts up) scanned in ${Math.random().toFixed(2)} seconds`);
+        return lines.join('\n');
+      }
+
       if (type === 'ping') {
         // Ping scan
-        const ip = target.match(/^\d+\.\d+\.\d+\.\d+$/) ? target : `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
         lines.push(`Nmap scan report for ${target} (${ip})`);
         lines.push(`Host is up (${(Math.random() * 5 + 0.1).toFixed(2)}s latency).`);
         lines.push(`Nmap done: 1 IP address (1 host up) scanned in ${Math.random().toFixed(2)} seconds`);
       } else {
         // Port scan
-        const ip = target.match(/^\d+\.\d+\.\d+\.\d+$/) ? target : `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
         lines.push(`Nmap scan report for ${target} (${ip})`);
         lines.push(`Host is up (${(Math.random() * 5 + 0.1).toFixed(2)}s latency).`);
 
         if (type !== 'ping') {
-          lines.push('Not shown: 997 closed ports');
-          lines.push('PORT      STATE    SERVICE');
-
-          // Generate some random open ports
-          const commonPorts = [
-            { port: 22, service: 'ssh', version: 'OpenSSH 8.2p1 Ubuntu 4ubuntu0.3' },
-            { port: 80, service: 'http', version: 'Apache httpd 2.4.41' },
-            { port: 443, service: 'https', version: 'Apache httpd 2.4.41' },
-            { port: 53, service: 'domain', version: 'ISC BIND 9.16.1' },
-            { port: 25, service: 'smtp', version: 'Postfix smtpd' },
-            { port: 110, service: 'pop3', version: 'Dovecot pop3d' },
-            { port: 143, service: 'imap', version: 'Dovecot imapd' },
-            { port: 993, service: 'imaps', version: 'Dovecot imapd' },
-            { port: 995, service: 'pop3s', version: 'Dovecot pop3d' }
-          ];
-
-          const openPorts = commonPorts.filter(() => Math.random() < 0.4); // 40% chance each port is open
-
-          openPorts.forEach(({ port, service, version }) => {
-            let state = 'open';
-            let versionInfo = '';
-
-            if (versionDetection) {
-              versionInfo = ` ${version}`;
-            }
-
-            lines.push(`${port}/tcp   ${state}    ${service}${versionInfo}`);
-          });
+          if (server && server.ports.size > 0) {
+            lines.push('PORT      STATE    SERVICE');
+            const portsArray = Array.from(server.ports.entries());
+            portsArray.forEach(([port, service]) => {
+              let state = 'open';
+              if (server.firewall && Math.random() < 0.7) { // Firewall blocks some ports
+                state = 'filtered';
+              }
+              let versionInfo = '';
+              if (versionDetection) {
+                versionInfo = ` ${service.version}`;
+              }
+              lines.push(`${port}/tcp   ${state}    ${service.name}${versionInfo}`);
+            });
+          } else if (website) {
+            // Websites typically have HTTP/HTTPS
+            lines.push('PORT      STATE    SERVICE');
+            const webPorts = [
+              { port: 80, service: 'http', version: 'Apache httpd 2.4.41' },
+              { port: 443, service: 'https', version: 'Apache httpd 2.4.41' }
+            ];
+            webPorts.forEach(({ port, service, version }) => {
+              let versionInfo = '';
+              if (versionDetection) {
+                versionInfo = ` ${version}`;
+              }
+              lines.push(`${port}/tcp   open    ${service}${versionInfo}`);
+            });
+          } else {
+            // Fallback to random ports if no server data
+            lines.push('Not shown: 997 closed ports');
+            lines.push('PORT      STATE    SERVICE');
+            const commonPorts = [
+              { port: 22, service: 'ssh', version: 'OpenSSH 8.2p1 Ubuntu 4ubuntu0.3' },
+              { port: 80, service: 'http', version: 'Apache httpd 2.4.41' },
+              { port: 443, service: 'https', version: 'Apache httpd 2.4.41' }
+            ];
+            const openPorts = commonPorts.filter(() => Math.random() < 0.3);
+            openPorts.forEach(({ port, service, version }) => {
+              let versionInfo = '';
+              if (versionDetection) {
+                versionInfo = ` ${version}`;
+              }
+              lines.push(`${port}/tcp   open    ${service}${versionInfo}`);
+            });
+          }
         }
 
-        if (osDetection) {
+        if (osDetection && server?.os) {
           lines.push('');
           lines.push('OS detection performed. Please report any incorrect results at https://nmap.org/submit/ .');
-          lines.push('Nmap scan report for example.com (93.184.216.34)');
-          lines.push('OS details: Linux 3.10 - 4.11');
-          const osMatches = [
-            'Linux 3.10 - 4.11',
-            'Linux 4.4',
-            'Linux 4.9'
-          ];
-          osMatches.forEach((os, index) => {
+          lines.push(`Nmap scan report for ${target} (${ip})`);
+          lines.push(`OS details: ${server.os}`);
+          // Add some variation
+          const similarOS = [
+            server.os,
+            server.os.replace(/\d+/g, (match) => (parseInt(match) + Math.floor(Math.random() * 3) - 1).toString()),
+            server.os.replace(/Linux|Windows|FreeBSD/gi, (match) => match === 'Linux' ? 'Ubuntu' : match === 'Ubuntu' ? 'Linux' : match)
+          ].filter((os, index, arr) => arr.indexOf(os) === index);
+          similarOS.forEach((os, index) => {
             lines.push(`${index + 1}. ${os}`);
           });
         }
