@@ -39,6 +39,9 @@ Expected Behavior
 
 To be done: 
 
+***currently we are working with files from the refactor_synopsis branch.
+
+
 I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. I've made another file and used it for the (synopsis of most of the commands), that way we can get some code out of the Terminal.tsx file to shorten it. This needs to be finished. Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification.
 
 
