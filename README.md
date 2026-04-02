@@ -39,9 +39,9 @@ Expected Behavior
 
 To be done: 
 
- Review the game program with the goal of understanding the expected behavior of the program. The game needs a mock internet. I want this to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Review the game program with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet. I want to integrate the mock internet with the existing newtworking commands, (ping, nmap, ifconfig.) it is to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
- no multiplayer needed. So a single player world, persistent through saves, but like grey hack, It should be different every new game. I like how the internet works in grey hack single player. I want it as close to that as possible. start with step 1, Basic data structures and DNS, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
+ no multiplayer needed. So a single player world, persistent through saves, but like grey hack, It should be different every new game. I like how the internet works in grey hack single player. I want it as close to that as possible. start with step 1, integrate mock internet with existing commands, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
 
 
 # Context - Current State and Recent Changes
@@ -175,6 +175,7 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
     - added snake available through apt
     - pushed for new agent
     - started the mock internet (I think)
+    - pushed for new agent
     - 
 
     x figure out email, browser, etcetera
