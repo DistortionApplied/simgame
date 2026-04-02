@@ -133,7 +133,7 @@ I want to make the monolithic files shorter by adding new files, but last time I
     - new branch new model 
     - moved a bunch of command synopsis to new commandHelp.ts file
     - got the rest of the command synopsis over to commandHelp.ts
-    - merging back to main
+    - merging back to main/deleted branch
     -
     x figure out email, browser, etcetera
 
