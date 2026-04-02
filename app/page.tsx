@@ -6,6 +6,7 @@ import BootScreen from '../components/BootScreen';
 import LoginPrompt from '../components/LoginPrompt';
 import SetupWizard from '../components/SetupWizard';
 import NanoEditor from '../components/NanoEditor';
+import SnakeGame from '../components/SnakeGame';
 
 interface GameSetup {
   playerName: string;
@@ -15,7 +16,7 @@ interface GameSetup {
   createdAt: string;
 }
 
-type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing';
+type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing' | 'snake';
 
 interface EditorState {
   filePath: string;
@@ -71,6 +72,10 @@ export default function Home() {
     setGameState('editing');
   };
 
+  const handleOpenSnake = () => {
+    setGameState('snake');
+  };
+
   const handleSaveFile = async (content: string) => {
     try {
       // Import filesystem dynamically to avoid circular dependencies
@@ -93,6 +98,10 @@ export default function Home() {
     setGameState('playing');
   };
 
+  const handleExitSnake = () => {
+    setGameState('playing');
+  };
+
   if (gameState === 'boot') {
     return <BootScreen onBootComplete={handleBootComplete} />;
   }
@@ -111,7 +120,7 @@ export default function Home() {
   }
 
   if (gameState === 'playing') {
-    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onReboot={handleReboot} />;
+    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onOpenSnake={handleOpenSnake} onReboot={handleReboot} />;
   }
 
   if (gameState === 'editing' && editorState) {
@@ -123,6 +132,10 @@ export default function Home() {
         onExit={handleExitEditor}
       />
     );
+  }
+
+  if (gameState === 'snake') {
+    return <SnakeGame onExit={handleExitSnake} />;
   }
 
   return null;

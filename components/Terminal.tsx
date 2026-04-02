@@ -24,10 +24,11 @@ interface GameSetup {
 interface TerminalProps {
   setupData: GameSetup | null;
   onOpenEditor: (filePath: string, content: string) => void;
+  onOpenSnake: () => void;
   onReboot: () => void;
 }
 
-export default function Terminal({ setupData, onOpenEditor, onReboot }: TerminalProps) {
+export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
   const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig'];
 
@@ -1172,6 +1173,18 @@ export default function Terminal({ setupData, onOpenEditor, onReboot }: Terminal
         break;
       }
 
+      case 'snake': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = getCommandHelp('snake');
+        } else if (!isPackageInstalled('snake')) {
+          error = 'snake: command not found\nTry: apt install snake';
+        } else {
+          onOpenSnake();
+          return; // Don't add any lines to terminal when opening game
+        }
+        break;
+      }
+
       case 'nmap': {
         const result = executeNmap(args, setupData, isPackageInstalled, AVAILABLE_PACKAGES);
         output = result.output || '';
@@ -1449,7 +1462,7 @@ Examples:
   const getCommandCompletions = (prefix: string): string[] => {
     const allCommands = [
       'help', 'man', 'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm',
-      'cat', 'nano', 'nmap', 'apt', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
+      'cat', 'nano', 'nmap', 'snake', 'apt', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
       'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig'
     ];
 

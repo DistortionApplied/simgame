@@ -28,6 +28,7 @@ export function getCommandHelp(command: string): string {
       ['cmd >> file', 'Output append redirection to file'],
       ['ping [opts] <host>', 'Send ICMP echo requests to network host'],
       ['nmap [opts] <target>', 'Network exploration tool and security scanner'],
+      ['snake', 'Play the classic Snake game'],
       ['ifconfig [iface]', 'Configure network interfaces'],
       ['whoami', 'Show current user'],
       ['id', 'Show user/group IDs'],
@@ -754,6 +755,34 @@ EXAMPLES
 
 SEE ALSO
         clear(1), reset(1)
+`,
+    snake: `snake - Classic Snake game
+
+SYNOPSIS
+        snake
+
+DESCRIPTION
+        Play the classic Snake game in the terminal. Control the snake using
+        arrow keys to eat food and grow longer. Avoid hitting walls or yourself.
+
+        The game ends when the snake collides with a wall or its own body.
+
+CONTROLS
+        Arrow Keys    Move the snake (Up, Down, Left, Right)
+        q or ESC      Quit the game
+
+GAMEPLAY
+        - Eat the food (@) to grow and increase your score
+        - The snake moves continuously in the current direction
+        - Game speed increases as your score grows
+        - Score is displayed at the top of the screen
+
+EXAMPLES
+        snake
+                Start a new game of Snake
+
+SEE ALSO
+        No related commands in this simulation
 `,
     // nmap and apt have their own help in lib files, so not included here
   };

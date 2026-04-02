@@ -30,6 +30,15 @@ export const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
     size: '1,234 kB',
     dependencies: [],
     provides: ['network-scanner']
+  },
+  'snake': {
+    name: 'snake',
+    version: '1.0-1',
+    description: 'Classic Snake game for the terminal',
+    maintainer: 'Game Developers <games@ubuntu.com>',
+    size: '256 kB',
+    dependencies: [],
+    provides: ['game']
   }
 };
 
@@ -168,6 +177,9 @@ SEE ALSO
       } else if (packageName === 'nmap') {
         fs.createNewFile(`/bin/nmap.bin`);
         fs.writeFile(`/bin/nmap.bin`, '#!/bin/bash\n# nmap network scanner binary\n');
+      } else if (packageName === 'snake') {
+        fs.createNewFile(`/bin/snake.bin`);
+        fs.writeFile(`/bin/snake.bin`, '#!/bin/bash\n# snake game binary\n');
       }
 
       return { lines };
@@ -210,6 +222,8 @@ SEE ALSO
         fs.remove(`/bin/nano.bin`);
       } else if (packageName === 'nmap') {
         fs.remove(`/bin/nmap.bin`);
+      } else if (packageName === 'snake') {
+        fs.remove(`/bin/snake.bin`);
       }
 
       // Remove placeholder files

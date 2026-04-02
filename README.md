@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-TBD
+Let's add a simple terminal game to be available through apt.
 
 
 1.2 revisions and improvements
@@ -135,7 +135,9 @@ TBD
     - refactored reboot
     - moved some apt remnance to apt.ts
     - merge back to main
-    late mid version push
+    - added snake available through apt
+    - pushed for new agent
+
 
     x figure out email, browser, etcetera
 
