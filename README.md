@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. Let's make another file and use it for the (synopsis of all the commands), that way we can get some code out of the Terminal.tsx file to shorten it.  Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification. Make absolutely sure that none of your changes effect the functionaluty of what has already been built.
+I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. I've made another file and used it for the (synopsis of most of the commands), that way we can get some code out of the Terminal.tsx file to shorten it. This needs to be finished. Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification.
 
 
 1.2 revisions and improvements
@@ -127,8 +127,9 @@ I want to make the monolithic files shorter by adding new files, but last time I
     - moved apt to shorten Terminal.tsx
     mid version push
     - merged branch back to main
-    -
-    -
+    - new branch new model 
+    - moved a bunch of command synopsis to new commandHelp.ts file
+    x I need to get the rest of the command synopsis over to commandHelp.ts
     x figure out email, browser, etcetera
 
 
