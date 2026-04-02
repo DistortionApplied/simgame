@@ -42,7 +42,7 @@ To be done:
 
 
 
-I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. I need to add another file and use it for the (--------), that way we can get some code out of the monolith files to shorten them. Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification.
+I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. I need to add another file and use it for the reboot related code. That way we can get some code out of the monolith files to shorten them. Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification.
 
 
 1.2 revisions and improvements
