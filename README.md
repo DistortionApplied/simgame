@@ -39,9 +39,9 @@ Expected Behavior
 
 To be done: 
 
-Review the game program with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet. I want to integrate the mock internet with the existing newtworking commands, (ping, nmap, ifconfig.) it is to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Review the game program with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet. I want to improve the browser. It is to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
- no multiplayer needed. So a single player world, persistent through saves, but like grey hack, It should be different every new game. I like how the internet works in grey hack single player. I want it as close to that as possible. start with step 1, integrate mock internet with existing commands, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
+  I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the browser, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
 
 
 # Context - Current State and Recent Changes
@@ -65,7 +65,6 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
 - User: Single-player persistent world, procedurally generated per new game
 
 ## Next Steps
-1. Integrate mock internet with existing commands (ping, nmap)
 
 ---DO NOT DO THESE STEPS YET---
 2. Add new commands (browse, ssh, telnet, ftp, whois, dig)
@@ -178,7 +177,11 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
     - pushed for new agent
     - integrated mock internet with exisiting commands
     - Pushed pre browser
-    
+    - sort of implemented browser, needs MUCH improvment to be more like Gray Hack.
+    - pushed for new agent to improve browser.
+
+
+
 
     x figure out email, browser, etcetera
 

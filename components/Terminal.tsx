@@ -6,6 +6,7 @@ import { executeNmap } from '../lib/nmap';
 import { executeApt, AVAILABLE_PACKAGES, createIsPackageInstalled } from '../lib/apt';
 import { getCommandHelp } from '../lib/commandHelp';
 import { executeReboot } from '../lib/reboot';
+import { executeBrowser } from '../lib/browser';
 import { MockInternet } from '../lib/internet';
 
 export interface TerminalLine {
@@ -31,7 +32,7 @@ interface TerminalProps {
 
 export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
-  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig'];
+  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser'];
 
   const [lines, setLines] = useState<TerminalLine[]>([
     { type: 'output', content: `Welcome to Linux Sim Game, ${setupData?.playerName || 'User'}!` },
@@ -845,6 +846,17 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
           return result.trim();
         }
 
+        break;
+      }
+
+      case 'browser': {
+        if (!isPackageInstalled('browser')) {
+          error = 'browser: command not found\nTry: apt install browser';
+          break;
+        }
+        const result = executeBrowser(args, setupData, mockInternet);
+        output = result.output || '';
+        error = result.error || '';
         break;
       }
 

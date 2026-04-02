@@ -1243,5 +1243,38 @@ AUTHOR
         Alan Cox, <Alan.Cox@linux.org>
         Phil Blundell, <Philip.Blundell@pobox.com>
         Andi Kleen
+`,
+
+  browser: `BROWSER(1)                    User Commands                   BROWSER(1)
+
+NAME
+        browser - simple terminal-based web browser
+
+SYNOPSIS
+        browser [DOMAIN]
+
+DESCRIPTION
+        Browser is a simple terminal-based web browser for viewing simulated
+        websites in the mock internet environment.
+
+        DOMAIN specifies the domain name to browse (e.g., google.com).
+
+OPTIONS
+        -h, --help
+                Display help information.
+
+EXAMPLES
+        browser google.com
+                View the Google homepage.
+
+        browser --help
+                Display this help message.
+
+NOTES
+        This browser displays website content in a formatted text interface.
+        It is designed for the simulated Linux environment.
+
+SEE ALSO
+        ping(1), nmap(1)
 `
 };

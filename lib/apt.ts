@@ -39,6 +39,15 @@ export const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
     size: '256 kB',
     dependencies: [],
     provides: ['game']
+  },
+  'browser': {
+    name: 'browser',
+    version: '1.0-1',
+    description: 'Simple terminal-based web browser for viewing simulated websites',
+    maintainer: 'Web Developers <web@ubuntu.com>',
+    size: '512 kB',
+    dependencies: [],
+    provides: ['web-browser']
   }
 };
 
