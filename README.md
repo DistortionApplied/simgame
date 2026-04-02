@@ -39,10 +39,7 @@ Expected Behavior
 
 To be done: 
 
-
-
-
-I want to make the monolithic files shorter by adding new files, but last time I tried to refactor everything went terribly wrong, so this time we will go slow and steady. I need to add another file and use it for the reboot related code. That way we can get some code out of the monolith files to shorten them. Make sure that any changes you make absolutely do NOT effect the functioning of the game that has already been built. if you need any clarification, ask me for clarification.
+TBD
 
 
 1.2 revisions and improvements
@@ -135,6 +132,11 @@ I want to make the monolithic files shorter by adding new files, but last time I
     - got the rest of the command synopsis over to commandHelp.ts
     - merging back to main/deleted branch
     - readme push to new branch
+    - refactored reboot
+    - moved some apt remnance to apt.ts
+    - merge back to main
+    late mid version push
+
     x figure out email, browser, etcetera
 
 

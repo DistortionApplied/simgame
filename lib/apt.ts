@@ -1,12 +1,7 @@
 import { FakeFileSystem } from './filesystem';
+import { TerminalLine } from '../components/Terminal';
 
-interface TerminalLine {
-  type: 'input' | 'output' | 'error';
-  content: string;
-  commandPrompt?: string;
-}
-
-interface PackageInfo {
+export interface PackageInfo {
   name: string;
   version: string;
   description: string;
@@ -14,6 +9,36 @@ interface PackageInfo {
   size: string;
   dependencies: string[];
   provides: string[];
+}
+
+// Package database for apt simulation
+export const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
+  'nano': {
+    name: 'nano',
+    version: '6.2-1',
+    description: 'small, friendly text editor inspired by Pico',
+    maintainer: 'Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>',
+    size: '548 kB',
+    dependencies: [],
+    provides: ['editor']
+  },
+  'nmap': {
+    name: 'nmap',
+    version: '7.91+dfsg1+really7.80+dfsg1-2',
+    description: 'Nmap - The Network Mapper',
+    maintainer: 'Debian Security Tools <team+pkg-security@tracker.debian.org>',
+    size: '1,234 kB',
+    dependencies: [],
+    provides: ['network-scanner']
+  }
+};
+
+export function createIsPackageInstalled(setupData: any) {
+  return (packageName: string): boolean => {
+    const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+    const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+    return !!installed[packageName];
+  };
 }
 
 export function executeApt(
