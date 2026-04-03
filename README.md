@@ -228,7 +228,9 @@ Loading States: Add simulated loading animations and progress indicators
     - working on getting websites to look like websites, starting with google. 
     - new model push
         x trying to make the fake google website appear correctly in the fake browser
-
+            - may have made some headway!
+    - protect good changes push
+    
 
 
 

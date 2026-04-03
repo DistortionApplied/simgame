@@ -122,7 +122,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '6.0' // Increment when templates change
+      version: '11.0' // Increment when templates change
     };
   }
 
