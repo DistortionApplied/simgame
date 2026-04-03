@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Changed to googo.com, except the actual url. We can come back to it. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Changed to googo.com, except the actual url. Let's go ahead and do that now. change google.com to googo.com. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -202,7 +202,7 @@ Issues Identified
     - improved uhhhhh TF out of the browser
     - working on getting websites to look like websites, starting with google. 
     - new model push
-        x trying to make the fake google website appear correctly in the fake browser
+        - trying to make the fake google website appear correctly in the fake browser
             - may have made some headway!
     - protect good changes push
     - maybe addressed autocomplete, will test as we go.
@@ -213,10 +213,22 @@ Issues Identified
         - Need to come back to that
     - hopefully tended to up arrow for last command stuff.
     - think it's time to call it 2.0!
+    - merged back to main branch
 2.0 rev & imp
-    -
+    x compose email screen needs a scroll bar. currently the player can not access a send button
+    x googo need to function in the game.
+    x Links on googo need to be worked on
+    x google.com needs to chang to googo.com
+    x need to work on existing websites 
+    x need to add a bank website
+    x 
+    
 
 
+    
+    
+    
+    
     testing:
 
           
