@@ -226,6 +226,7 @@ Loading States: Add simulated loading animations and progress indicators
     - improved uhhhhh TF out of the browser
         *still needs some serious help
     - working on getting websites to look like websites, starting with google. 
+    - new model push
         x trying to make the fake google website appear correctly in the fake browser
 
 
