@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Review the game program with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet. I want to improve the browser. It is to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet. Instead of a terminal based browser, I want a window with a fake, graphical browser that operates like a real browser within the game. We will need to be able to make the websites look as realistic as they do in the game "Grey Hack", or better. It is to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
   I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the browser, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
 
