@@ -39,7 +39,9 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet. Instead of a terminal based browser, I want a window with a fake, graphical browser that operates like a real browser within the game. We will need to be able to make the websites look as realistic as they do in the game "Grey Hack", or better. It is to function similarly to the game "Grey Hack". Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and just built an in game, simulated browser. we are trying to make the fake website google.com look similarly to the real one. We will need to be able to make the websites look as realistic as they do in the game "Grey Hack", or better. Look over the game and see what has been done so far and please fix the issues. It is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+
+https://github.com/DistortionApplied/simgame.git
 
   I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the browser, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
 
@@ -179,6 +181,9 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
     - Pushed pre browser
     - sort of implemented browser, needs MUCH improvment to be more like Gray Hack.
     - pushed for new agent to improve browser.
+    - improved uhhhhh TF out of the browser
+        *still needs some serious help
+        x trying to make the fake google website appear correctly in the fake browser
 
 
 

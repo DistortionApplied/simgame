@@ -7,6 +7,8 @@ import LoginPrompt from '../components/LoginPrompt';
 import SetupWizard from '../components/SetupWizard';
 import NanoEditor from '../components/NanoEditor';
 import SnakeGame from '../components/SnakeGame';
+import GraphicalBrowser from '../components/GraphicalBrowser';
+import { MockInternet } from '../lib/internet';
 
 interface GameSetup {
   playerName: string;
@@ -16,7 +18,7 @@ interface GameSetup {
   createdAt: string;
 }
 
-type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing' | 'snake';
+type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing' | 'snake' | 'browsing';
 
 interface EditorState {
   filePath: string;
@@ -27,6 +29,8 @@ export default function Home() {
   const [gameState, setGameState] = useState<GameState>('boot');
   const [setupData, setSetupData] = useState<GameSetup | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const [browserUrl, setBrowserUrl] = useState<string>('');
+  const [mockInternet, setMockInternet] = useState<MockInternet | null>(null);
 
   const handleStartNewGame = () => {
     setGameState('setup');
@@ -46,6 +50,7 @@ export default function Home() {
     // Clear existing filesystem for this user
     localStorage.removeItem(`linux-sim-filesystem-${data.playerName}`);
 
+    setMockInternet(new MockInternet(completeSetup));
     setGameState('playing');
   };
 
@@ -55,6 +60,7 @@ export default function Home() {
 
   const handleLoginSuccess = (data: GameSetup) => {
     setSetupData(data);
+    setMockInternet(new MockInternet(data));
     setGameState('playing');
   };
 
@@ -74,6 +80,15 @@ export default function Home() {
 
   const handleOpenSnake = () => {
     setGameState('snake');
+  };
+
+  const handleOpenBrowser = (url: string) => {
+    setBrowserUrl(url);
+    setGameState('browsing');
+  };
+
+  const handleExitBrowser = () => {
+    setGameState('playing');
   };
 
   const handleSaveFile = async (content: string) => {
@@ -120,7 +135,7 @@ export default function Home() {
   }
 
   if (gameState === 'playing') {
-    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onOpenSnake={handleOpenSnake} onReboot={handleReboot} />;
+    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onOpenSnake={handleOpenSnake} onOpenBrowser={handleOpenBrowser} onReboot={handleReboot} />;
   }
 
   if (gameState === 'editing' && editorState) {
@@ -136,6 +151,10 @@ export default function Home() {
 
   if (gameState === 'snake') {
     return <SnakeGame onExit={handleExitSnake} />;
+  }
+
+  if (gameState === 'browsing' && mockInternet) {
+    return <GraphicalBrowser initialUrl={browserUrl} onClose={handleExitBrowser} mockInternet={mockInternet} />;
   }
 
   return null;

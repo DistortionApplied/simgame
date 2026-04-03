@@ -6,7 +6,6 @@ import { executeNmap } from '../lib/nmap';
 import { executeApt, AVAILABLE_PACKAGES, createIsPackageInstalled } from '../lib/apt';
 import { getCommandHelp } from '../lib/commandHelp';
 import { executeReboot } from '../lib/reboot';
-import { executeBrowser } from '../lib/browser';
 import { MockInternet } from '../lib/internet';
 
 export interface TerminalLine {
@@ -27,10 +26,11 @@ interface TerminalProps {
   setupData: GameSetup | null;
   onOpenEditor: (filePath: string, content: string) => void;
   onOpenSnake: () => void;
+  onOpenBrowser: (url: string) => void;
   onReboot: () => void;
 }
 
-export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboot }: TerminalProps) {
+export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenBrowser, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
   const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser'];
 
@@ -854,9 +854,27 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onReboo
           error = 'browser: command not found\nTry: apt install browser';
           break;
         }
-        const result = executeBrowser(args, setupData, mockInternet);
-        output = result.output || '';
-        error = result.error || '';
+        if (args.length === 0) {
+          error = 'browser: missing target domain\nTry: browser google.com';
+          break;
+        }
+        const domain = args[0];
+        if (!mockInternet) {
+          error = 'browser: Network not available';
+          break;
+        }
+        const ip = mockInternet.resolveDomain(domain);
+        if (!ip) {
+          error = `browser: Unable to resolve host '${domain}'`;
+          break;
+        }
+        const website = mockInternet.getWebsiteByDomain(domain);
+        if (!website) {
+          error = `browser: Page not found for '${domain}'`;
+          break;
+        }
+        // Open graphical browser instead of text output
+        onOpenBrowser(`http://${domain}`);
         break;
       }
 
