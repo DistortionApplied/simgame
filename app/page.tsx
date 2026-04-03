@@ -154,7 +154,7 @@ export default function Home() {
   }
 
   if (gameState === 'browsing' && mockInternet) {
-    return <GraphicalBrowser initialUrl={browserUrl} onClose={handleExitBrowser} mockInternet={mockInternet} />;
+    return <GraphicalBrowser initialUrl={browserUrl} onClose={handleExitBrowser} mockInternet={mockInternet} setupData={setupData} />;
   }
 
   return null;

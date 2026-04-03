@@ -3,10 +3,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MockInternet, Website } from '../lib/internet';
 
+interface GameSetup {
+  playerName: string;
+  computerName: string;
+  rootPassword: string;
+  userPassword: string;
+  createdAt: string;
+}
+
 interface GraphicalBrowserProps {
   initialUrl: string;
   onClose: () => void;
   mockInternet: MockInternet;
+  setupData: GameSetup | null;
 }
 
 interface BrowserTab {
@@ -14,7 +23,7 @@ interface BrowserTab {
   title: string;
 }
 
-export default function GraphicalBrowser({ initialUrl, onClose, mockInternet }: GraphicalBrowserProps) {
+export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, setupData }: GraphicalBrowserProps) {
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [urlInput, setUrlInput] = useState(initialUrl);
   const [currentWebsite, setCurrentWebsite] = useState<Website | null>(null);
@@ -25,15 +34,55 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet }: 
   const [windowPosition, setWindowPosition] = useState({ x: 100, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const dragOffsetRef = useRef(dragOffset);
 
   // Determine if the current website should be rendered in light mode
   const isLightTheme = currentWebsite?.domain === 'google.com' || currentWebsite?.domain === 'wikipedia.org';
 
+  // Load bookmarks and history from localStorage
+  const loadBookmarks = useCallback(() => {
+    const key = `browser-bookmarks-${setupData?.playerName || 'user'}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      setBookmarks(JSON.parse(stored));
+    }
+  }, [setupData]);
+
+  const saveBookmarks = useCallback((newBookmarks: string[]) => {
+    const key = `browser-bookmarks-${setupData?.playerName || 'user'}`;
+    localStorage.setItem(key, JSON.stringify(newBookmarks));
+    setBookmarks(newBookmarks);
+  }, [setupData]);
+
+  const loadHistory = useCallback(() => {
+    const key = `browser-history-${setupData?.playerName || 'user'}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsedHistory = JSON.parse(stored);
+      setHistory(parsedHistory.history || [initialUrl]);
+      setHistoryIndex(parsedHistory.index || 0);
+    }
+  }, [setupData, initialUrl]);
+
+  const saveHistory = useCallback((newHistory: string[], newIndex: number) => {
+    const key = `browser-history-${setupData?.playerName || 'user'}`;
+    localStorage.setItem(key, JSON.stringify({ history: newHistory, index: newIndex }));
+  }, [setupData]);
+
   // Load website content when URL changes
   useEffect(() => {
     dragOffsetRef.current = dragOffset;
   }, [dragOffset]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadBookmarks();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadHistory();
+  }, [loadBookmarks, loadHistory]);
 
   useEffect(() => {
     // Remove http:// if present
@@ -86,6 +135,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet }: 
       newHistory.push(url);
       setHistory(newHistory);
       setHistoryIndex(newHistory.length - 1);
+      saveHistory(newHistory, newHistory.length - 1);
     }
     // Update active tab
     const newTabs = [...tabs];
@@ -110,6 +160,30 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet }: 
   const refresh = () => {
     // Trigger re-load by updating URL (useEffect will handle)
     setCurrentUrl(currentUrl);
+  };
+
+  const addBookmark = () => {
+    if (!bookmarks.includes(currentUrl)) {
+      const newBookmarks = [...bookmarks, currentUrl];
+      saveBookmarks(newBookmarks);
+    }
+  };
+
+  const removeBookmark = (url: string) => {
+    const newBookmarks = bookmarks.filter(b => b !== url);
+    saveBookmarks(newBookmarks);
+  };
+
+  const navigateToBookmark = (url: string) => {
+    navigateTo(url);
+    setShowBookmarks(false);
+    setShowHistory(false);
+  };
+
+  const navigateToHistory = (url: string) => {
+    navigateTo(url);
+    setShowBookmarks(false);
+    setShowHistory(false);
   };
 
   const addTab = () => {
@@ -165,6 +239,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet }: 
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
+
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50">
@@ -245,6 +321,75 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet }: 
           <button onClick={refresh} className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-500">
             ↻
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowBookmarks(!showBookmarks)}
+              className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-500"
+            >
+              ⭐
+            </button>
+            {showBookmarks && (
+              <div className="absolute top-full left-0 mt-1 bg-gray-700 border border-gray-600 rounded shadow-lg z-10 min-w-48">
+                <div className="p-2 border-b border-gray-600">
+                  <button
+                    onClick={addBookmark}
+                    className="w-full text-left px-2 py-1 text-white hover:bg-gray-600 rounded text-sm"
+                  >
+                    Add Bookmark
+                  </button>
+                </div>
+                {bookmarks.length > 0 && (
+                  <div className="max-h-48 overflow-y-auto">
+                    {bookmarks.map((bookmark, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-600">
+                        <button
+                          onClick={() => navigateToBookmark(bookmark)}
+                          className="text-left text-white text-sm flex-1 truncate"
+                        >
+                          {bookmark}
+                        </button>
+                        <button
+                          onClick={() => removeBookmark(bookmark)}
+                          className="text-gray-400 hover:text-red-400 ml-2"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {bookmarks.length === 0 && (
+                  <div className="p-2 text-gray-400 text-sm">No bookmarks</div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-500"
+            >
+              🕒
+            </button>
+            {showHistory && (
+              <div className="absolute top-full left-0 mt-1 bg-gray-700 border border-gray-600 rounded shadow-lg z-10 min-w-48">
+                <div className="max-h-48 overflow-y-auto">
+                  {history.slice().reverse().map((url, index) => (
+                    <button
+                      key={index}
+                      onClick={() => navigateToHistory(url)}
+                      className="w-full text-left px-2 py-1 text-white hover:bg-gray-600 text-sm truncate"
+                    >
+                      {url}
+                    </button>
+                  ))}
+                </div>
+                {history.length === 0 && (
+                  <div className="p-2 text-gray-400 text-sm">No history</div>
+                )}
+              </div>
+            )}
+          </div>
           <form onSubmit={handleUrlSubmit} className="flex-1 flex">
             <input
               type="text"
