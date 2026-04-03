@@ -28,14 +28,27 @@ export interface EmailAccount {
   createdAt: string;
 }
 
+export interface Attachment {
+  name: string;
+  content: string;
+  type: string;
+}
+
 export interface Email {
   id: string;
   from: string;
   to: string;
+  cc?: string[];
+  bcc?: string[];
   subject: string;
   body: string;
   timestamp: string;
   read: boolean;
+  starred: boolean;
+  labels: string[];
+  threadId: string;
+  attachments?: Attachment[];
+  replyTo?: string;
 }
 
 export interface Server {
@@ -81,17 +94,25 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '13.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 13.0');
+        if (!parsed.version || parsed.version !== '15.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 15.0');
           return null;
-        }
+        }version: '15.0' // Increment when templates change
         // Convert Maps back from objects
         parsed.dns = new Map(Object.entries(parsed.dns || {}));
         parsed.servers.forEach((server: any) => {
           server.ports = new Map(Object.entries(server.ports || {}));
         });
         // Ensure new fields exist for backward compatibility
-        parsed.emails = parsed.emails || [];
+        parsed.emails = (parsed.emails || []).map((email: any) => ({
+          ...email,
+          starred: email.starred ?? false,
+          labels: email.labels ?? ['inbox'],
+          threadId: email.threadId ?? email.id,
+          cc: email.cc ?? [],
+          bcc: email.bcc ?? [],
+          attachments: email.attachments ?? []
+        }));
         parsed.emailAccounts = parsed.emailAccounts || [];
         parsed.websiteVisits = new Set(parsed.websiteVisits || []);
         return parsed;
@@ -154,7 +175,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '14.0' // Increment when templates change
+      version: '15.0' // Increment when templates change
     };
   }
 
@@ -389,5 +410,99 @@ export class MockInternet {
 
   hasVisitedWebsite(domain: string): boolean {
     return this.data.websiteVisits.has(domain);
+  }
+
+  // Enhanced email management methods
+  markEmailAsRead(emailId: string, read: boolean = true): void {
+    const email = this.data.emails.find(e => e.id === emailId);
+    if (email) {
+      email.read = read;
+      this.saveToLocalStorage();
+    }
+  }
+
+  starEmail(emailId: string, starred: boolean = true): void {
+    const email = this.data.emails.find(e => e.id === emailId);
+    if (email) {
+      email.starred = starred;
+      this.saveToLocalStorage();
+    }
+  }
+
+  addLabelToEmail(emailId: string, label: string): void {
+    const email = this.data.emails.find(e => e.id === emailId);
+    if (email && !email.labels.includes(label)) {
+      email.labels.push(label);
+      this.saveToLocalStorage();
+    }
+  }
+
+  removeLabelFromEmail(emailId: string, label: string): void {
+    const email = this.data.emails.find(e => e.id === emailId);
+    if (email) {
+      email.labels = email.labels.filter(l => l !== label);
+      this.saveToLocalStorage();
+    }
+  }
+
+  moveEmailToTrash(emailId: string): void {
+    this.addLabelToEmail(emailId, 'trash');
+    this.removeLabelFromEmail(emailId, 'inbox');
+  }
+
+  archiveEmail(emailId: string): void {
+    this.addLabelToEmail(emailId, 'archive');
+    this.removeLabelFromEmail(emailId, 'inbox');
+  }
+
+  deleteEmail(emailId: string): void {
+    this.data.emails = this.data.emails.filter(e => e.id !== emailId);
+    this.saveToLocalStorage();
+  }
+
+  getEmailsByLabel(label: string): Email[] {
+    return this.data.emails.filter(email => email.labels.includes(label));
+  }
+
+  getThreadEmails(threadId: string): Email[] {
+    return this.data.emails.filter(email => email.threadId === threadId)
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }
+
+  createReplyEmail(originalEmail: Email, replyBody: string, playerEmail: string): Email {
+    const replyEmail: Email = {
+      id: Date.now().toString(),
+      from: playerEmail,
+      to: originalEmail.from,
+      subject: originalEmail.subject.startsWith('Re: ') ? originalEmail.subject : `Re: ${originalEmail.subject}`,
+      body: replyBody,
+      timestamp: new Date().toISOString(),
+      read: true,
+      starred: false,
+      labels: ['sent'],
+      threadId: originalEmail.threadId,
+      replyTo: originalEmail.id
+    };
+    return replyEmail;
+  }
+
+  searchEmails(query: string, currentUserEmail?: string): Email[] {
+    const lowerQuery = query.toLowerCase();
+    return this.data.emails.filter(email => {
+      // Only search in inbox, sent, archive for current user, unless no currentUserEmail specified
+      const userEmails = currentUserEmail ? [currentUserEmail] : [];
+      const isRelevant = !currentUserEmail ||
+        email.from === currentUserEmail ||
+        email.to === currentUserEmail ||
+        (email.cc && email.cc.includes(currentUserEmail)) ||
+        (email.bcc && email.bcc.includes(currentUserEmail));
+
+      if (!isRelevant) return false;
+
+      return email.from.toLowerCase().includes(lowerQuery) ||
+             email.to.toLowerCase().includes(lowerQuery) ||
+             email.subject.toLowerCase().includes(lowerQuery) ||
+             email.body.toLowerCase().includes(lowerQuery);
+    });
   }
 }

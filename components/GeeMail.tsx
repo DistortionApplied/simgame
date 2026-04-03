@@ -18,17 +18,22 @@ interface GeeMailProps {
 }
 
 export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailProps) {
-  const [currentView, setCurrentView] = useState<'inbox' | 'compose'>('inbox');
+  const [currentView, setCurrentView] = useState<'inbox' | 'sent' | 'trash' | 'archive' | 'starred' | 'compose'>('inbox');
   const [emails, setEmails] = useState<Email[]>([]);
+  const [filteredEmails, setFilteredEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [composeData, setComposeData] = useState({
     to: '',
+    cc: '',
+    bcc: '',
     subject: '',
     body: ''
   });
   const [windowPosition, setWindowPosition] = useState({ x: 100, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
 
   // Load emails from mock internet and initialize account
   React.useEffect(() => {
@@ -58,12 +63,46 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
         subject: 'Welcome to GeeMail!',
         body: 'Welcome to your virtual email service. This is a simulated email system within the game.\n\nYou can now send emails to other players and explore the virtual internet.\n\nHappy hacking!',
         timestamp: new Date().toISOString(),
-        read: false
+        read: false,
+        starred: false,
+        labels: ['inbox'],
+        threadId: 'welcome'
       };
       mockInternet.addEmail(welcomeEmail);
       setEmails(mockInternet.getEmails());
     }
   }, [mockInternet, setupData]);
+
+  // Filter emails based on current view and search
+  React.useEffect(() => {
+    let filtered = emails;
+    if (currentView !== 'compose') {
+      if (currentView === 'starred') {
+        filtered = emails.filter(email => email.starred);
+      } else {
+        filtered = mockInternet.getEmailsByLabel(currentView);
+      }
+      if (searchQuery) {
+        const playerEmail = `${setupData?.playerName || 'user'}@geemail.com`;
+        filtered = mockInternet.searchEmails(searchQuery, playerEmail).filter(email =>
+          filtered.some(f => f.id === email.id)
+        );
+      }
+    }
+    setFilteredEmails(filtered);
+  }, [emails, currentView, searchQuery, mockInternet, setupData]);
+
+  // Collect email suggestions
+  React.useEffect(() => {
+    const allEmails = new Set<string>();
+    emails.forEach(email => {
+      allEmails.add(email.from);
+      allEmails.add(email.to);
+      if (email.cc) email.cc.forEach(cc => allEmails.add(cc));
+      if (email.bcc) email.bcc.forEach(bcc => allEmails.add(bcc));
+    });
+    setEmailSuggestions(Array.from(allEmails).filter(email => email.includes('@')));
+  }, [emails]);
 
   const handleComposeSubmit = useCallback(() => {
     if (!composeData.to || !composeData.subject || !composeData.body) return;
@@ -72,17 +111,23 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
       id: Date.now().toString(),
       from: `${setupData?.playerName || 'user'}@geemail.com`,
       to: composeData.to,
+      cc: composeData.cc ? composeData.cc.split(',').map(s => s.trim()) : [],
+      bcc: composeData.bcc ? composeData.bcc.split(',').map(s => s.trim()) : [],
       subject: composeData.subject,
       body: composeData.body,
       timestamp: new Date().toISOString(),
-      read: true
+      read: true,
+      starred: false,
+      labels: ['sent'],
+      threadId: Date.now().toString()
     };
 
     mockInternet.addEmail(newEmail);
     setEmails(mockInternet.getEmails());
-    setComposeData({ to: '', subject: '', body: '' });
+    setFilteredEmails(mockInternet.getEmailsByLabel(currentView === 'compose' ? 'inbox' : currentView));
+    setComposeData({ to: '', cc: '', bcc: '', subject: '', body: '' });
     setCurrentView('inbox');
-  }, [composeData, setupData, mockInternet]);
+  }, [composeData, setupData, mockInternet, currentView]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDragging(true);
@@ -188,34 +233,72 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
         padding: '8px 12px',
         borderBottom: '1px solid #4a5568',
         display: 'flex',
+        flexDirection: 'column',
         gap: '8px'
       }}>
-        <button
-          onClick={() => setCurrentView('inbox')}
-          style={{
-            backgroundColor: currentView === 'inbox' ? '#4a5568' : '#1a202c',
-            color: '#e2e8f0',
-            border: '1px solid #4a5568',
-            borderRadius: '4px',
-            padding: '4px 12px',
-            cursor: 'pointer'
-          }}
-        >
-          Inbox ({emails.length})
-        </button>
-        <button
-          onClick={() => setCurrentView('compose')}
-          style={{
-            backgroundColor: currentView === 'compose' ? '#4a5568' : '#1a202c',
-            color: '#e2e8f0',
-            border: '1px solid #4a5568',
-            borderRadius: '4px',
-            padding: '4px 12px',
-            cursor: 'pointer'
-          }}
-        >
-          Compose
-        </button>
+        {/* Search Bar */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            type="text"
+            placeholder="Search emails..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '4px 8px',
+              backgroundColor: '#1a202c',
+              border: '1px solid #4a5568',
+              borderRadius: '4px',
+              color: '#e2e8f0',
+              fontFamily: 'monospace'
+            }}
+          />
+          <button
+            onClick={() => setCurrentView('compose')}
+            style={{
+              backgroundColor: currentView === 'compose' ? '#4a5568' : '#1a202c',
+              color: '#e2e8f0',
+              border: '1px solid #4a5568',
+              borderRadius: '4px',
+              padding: '4px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            Compose
+          </button>
+        </div>
+
+        {/* Label Buttons */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { key: 'inbox', label: 'Inbox' },
+            { key: 'sent', label: 'Sent' },
+            { key: 'starred', label: 'Starred' },
+            { key: 'archive', label: 'Archive' },
+            { key: 'trash', label: 'Trash' }
+          ].map(({ key, label }) => {
+            const count = key === 'starred'
+              ? emails.filter(e => e.starred).length
+              : mockInternet.getEmailsByLabel(key).length;
+            return (
+              <button
+                key={key}
+                onClick={() => setCurrentView(key as any)}
+                style={{
+                  backgroundColor: currentView === key ? '#4a5568' : '#1a202c',
+                  color: '#e2e8f0',
+                  border: '1px solid #4a5568',
+                  borderRadius: '4px',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                {label} ({count})
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Content */}
@@ -229,22 +312,47 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
               overflowY: 'auto',
               backgroundColor: '#1a202c'
             }}>
-              {emails.map(email => (
+              {filteredEmails.map(email => (
                 <div
                   key={email.id}
-                  onClick={() => setSelectedEmail(email)}
+                  onClick={() => {
+                    setSelectedEmail(email);
+                    if (!email.read) {
+                      mockInternet.markEmailAsRead(email.id, true);
+                      setEmails(mockInternet.getEmails());
+                    }
+                  }}
                   style={{
                     padding: '12px',
                     borderBottom: '1px solid #2d3748',
                     cursor: 'pointer',
                     backgroundColor: selectedEmail?.id === email.id ? '#2d3748' : 'transparent',
-                    fontWeight: email.read ? 'normal' : 'bold'
+                    fontWeight: email.read ? 'normal' : 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}
                 >
-                  <div style={{ fontSize: '14px', marginBottom: '4px' }}>{email.from}</div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '4px' }}>{email.subject}</div>
-                  <div style={{ fontSize: '11px', color: '#718096' }}>
-                    {new Date(email.timestamp).toLocaleString()}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      mockInternet.starEmail(email.id, !email.starred);
+                      setEmails(mockInternet.getEmails());
+                    }}
+                    style={{
+                      color: email.starred ? '#ffd700' : '#718096',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                  >
+                    ★
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', marginBottom: '4px' }}>{email.from}</div>
+                    <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '4px' }}>{email.subject}</div>
+                    <div style={{ fontSize: '11px', color: '#718096' }}>
+                      {new Date(email.timestamp).toLocaleString()}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -269,12 +377,121 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
                     <div style={{ color: '#a0aec0', marginBottom: '4px' }}>
                       To: {selectedEmail.to}
                     </div>
+                    {selectedEmail.cc && selectedEmail.cc.length > 0 && (
+                      <div style={{ color: '#a0aec0', marginBottom: '4px' }}>
+                        CC: {selectedEmail.cc.join(', ')}
+                      </div>
+                    )}
                     <div style={{ color: '#a0aec0', fontSize: '12px' }}>
                       {new Date(selectedEmail.timestamp).toLocaleString()}
                     </div>
                   </div>
-                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', marginBottom: '16px' }}>
                     {selectedEmail.body}
+                  </div>
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => {
+                        // Reply functionality - set compose with reply data
+                        setComposeData({
+                          to: selectedEmail.from,
+                          cc: '',
+                          bcc: '',
+                          subject: selectedEmail.subject.startsWith('Re: ') ? selectedEmail.subject : `Re: ${selectedEmail.subject}`,
+                          body: `\n\n--- Original Message ---\nFrom: ${selectedEmail.from}\nTo: ${selectedEmail.to}\nDate: ${new Date(selectedEmail.timestamp).toLocaleString()}\n\n${selectedEmail.body}`
+                        });
+                        setCurrentView('compose');
+                      }}
+                      style={{
+                        backgroundColor: '#4a5568',
+                        color: '#e2e8f0',
+                        border: '1px solid #4a5568',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Reply
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Forward functionality
+                        setComposeData({
+                          to: '',
+                          cc: '',
+                          bcc: '',
+                          subject: selectedEmail.subject.startsWith('Fwd: ') ? selectedEmail.subject : `Fwd: ${selectedEmail.subject}`,
+                          body: `\n\n--- Forwarded Message ---\nFrom: ${selectedEmail.from}\nTo: ${selectedEmail.to}\nDate: ${new Date(selectedEmail.timestamp).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.body}`
+                        });
+                        setCurrentView('compose');
+                      }}
+                      style={{
+                        backgroundColor: '#4a5568',
+                        color: '#e2e8f0',
+                        border: '1px solid #4a5568',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Forward
+                    </button>
+                    <button
+                      onClick={() => {
+                        mockInternet.starEmail(selectedEmail.id, !selectedEmail.starred);
+                        setEmails(mockInternet.getEmails());
+                      }}
+                      style={{
+                        backgroundColor: selectedEmail.starred ? '#ffd700' : '#4a5568',
+                        color: selectedEmail.starred ? '#000' : '#e2e8f0',
+                        border: '1px solid #4a5568',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {selectedEmail.starred ? 'Unstar' : 'Star'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        mockInternet.archiveEmail(selectedEmail.id);
+                        setEmails(mockInternet.getEmails());
+                        setSelectedEmail(null);
+                      }}
+                      style={{
+                        backgroundColor: '#4a5568',
+                        color: '#e2e8f0',
+                        border: '1px solid #4a5568',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Archive
+                    </button>
+                    <button
+                      onClick={() => {
+                        mockInternet.moveEmailToTrash(selectedEmail.id);
+                        setEmails(mockInternet.getEmails());
+                        setSelectedEmail(null);
+                      }}
+                      style={{
+                        backgroundColor: '#e53e3e',
+                        color: '#e2e8f0',
+                        border: '1px solid #e53e3e',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -293,7 +510,84 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
                 type="text"
                 value={composeData.to}
                 onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const currentValue = e.currentTarget.value.toLowerCase();
+                    const suggestion = emailSuggestions.find(email =>
+                      email.toLowerCase().startsWith(currentValue)
+                    );
+                    if (suggestion) {
+                      setComposeData(prev => ({ ...prev, to: suggestion }));
+                    }
+                  }
+                }}
                 placeholder="recipient@geemail.com"
+                list="emailList"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#1a202c',
+                  border: '1px solid #4a5568',
+                  borderRadius: '4px',
+                  color: '#e2e8f0',
+                  fontFamily: 'monospace'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', color: '#e2e8f0' }}>CC:</label>
+              <input
+                type="text"
+                value={composeData.cc}
+                onChange={(e) => setComposeData(prev => ({ ...prev, cc: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const currentValue = e.currentTarget.value.toLowerCase();
+                    const suggestion = emailSuggestions.find(email =>
+                      email.toLowerCase().startsWith(currentValue)
+                    );
+                    if (suggestion) {
+                      setComposeData(prev => ({ ...prev, cc: suggestion }));
+                    }
+                  }
+                }}
+                placeholder="cc@geemail.com (optional)"
+                list="emailList"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#1a202c',
+                  border: '1px solid #4a5568',
+                  borderRadius: '4px',
+                  color: '#e2e8f0',
+                  fontFamily: 'monospace'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', color: '#e2e8f0' }}>BCC:</label>
+              <input
+                type="text"
+                value={composeData.bcc}
+                onChange={(e) => setComposeData(prev => ({ ...prev, bcc: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const currentValue = e.currentTarget.value.toLowerCase();
+                    const suggestion = emailSuggestions.find(email =>
+                      email.toLowerCase().startsWith(currentValue)
+                    );
+                    if (suggestion) {
+                      setComposeData(prev => ({ ...prev, bcc: suggestion }));
+                    }
+                  }
+                }}
+                placeholder="bcc@geemail.com (optional)"
+                list="emailList"
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -373,6 +667,11 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
                 Send
               </button>
             </div>
+            <datalist id="emailList">
+              {emailSuggestions.map(email => (
+                <option key={email} value={email} />
+              ))}
+            </datalist>
           </div>
         )}
       </div>

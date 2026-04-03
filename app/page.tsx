@@ -159,15 +159,27 @@ export default function Home() {
   }
 
   if (gameState === 'snake') {
-    return <SnakeGame onExit={handleExitSnake} />;
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#000', zIndex: 999 }}>
+        <SnakeGame onExit={handleExitSnake} />
+      </div>
+    );
   }
 
   if (gameState === 'browsing' && mockInternet) {
-    return <GraphicalBrowser initialUrl={browserUrl} onClose={handleExitBrowser} mockInternet={mockInternet} setupData={setupData} />;
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#000', zIndex: 999 }}>
+        <GraphicalBrowser initialUrl={browserUrl} onClose={handleExitBrowser} mockInternet={mockInternet} setupData={setupData} />
+      </div>
+    );
   }
 
   if (gameState === 'geemail') {
-    return <GeeMail onClose={handleExitGeeMail} setupData={setupData} mockInternet={mockInternet!} />;
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#000', zIndex: 999 }}>
+        <GeeMail onClose={handleExitGeeMail} setupData={setupData} mockInternet={mockInternet!} />
+      </div>
+    );
   }
 
   return null;

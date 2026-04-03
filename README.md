@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Needs to be changed to googo.com, but we can move on for now. We need to make sure the geemail client is fully and correctly implemented, and then we need to improve it. It needs more features typical to gmail. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Changed to googo.com, except the actual url. We can come back to it. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -68,10 +68,21 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
 
 ## Next Steps
 
+## Focus Areas
+- Maintain backward compatibility
+- Ensure all networking is simulated, no real connections
+- Keep Grey Hack-like single-player experience
+
+
+---Grey Hack Realism
+Pixel-Perfect Recreation: Focus on accurate layouts, colors, and typography
+Interactive Elements: Make buttons, links, and forms feel responsive
+Loading States: Add simulated loading animations and progress indicators
+
 ---DO NOT DO THESE STEPS YET---
-2. Add new commands (browse, ssh, telnet, ftp, whois, dig)
-3. Create UI components for browsing and connections
-4. Add email/chat systems
+
+
+
 
 ## Focus Areas
 - Maintain backward compatibility
@@ -80,20 +91,10 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
 
 Issues Identified
 
-No CSS Support: Websites can't use stylesheets or classes - only inline styles work
-Simple Content: Most websites are plain text; Google lacks the actual Google logo, proper layout, and styling
-Unused Assets: The detailed google.html file in public/ isn't utilized
-Basic Forms: Input fields and buttons are functional but lack proper styling and behavior
-No Images/Media: No support for images, videos, or other media types
-Link Handling: Links prevent default but don't provide navigation feedback
-Missing Features: No bookmarks, advanced history, developer tools, or realistic browser behaviors
 
 
----Grey Hack Realism
-Pixel-Perfect Recreation: Focus on accurate layouts, colors, and typography
-Interactive Elements: Make buttons, links, and forms feel responsive
-Browser Chrome: Improve the browser window appearance (address bar, tabs, etc.)
-Loading States: Add simulated loading animations and progress indicators
+
+
 
 
 
@@ -207,11 +208,13 @@ Loading States: Add simulated loading animations and progress indicators
     - maybe addressed autocomplete, will test as we go.
     - push for new agent
     - refactored websites
-    - implementing geemail
-
-
-
-    x figure out email, browser, etcetera
+    - implemented geemail
+    - Changed google to googo, except google.com
+        - Need to come back to that
+    - hopefully tended to up arrow for last command stuff.
+    - think it's time to call it 2.0!
+2.0 rev & imp
+    -
 
 
     testing:

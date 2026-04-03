@@ -1596,7 +1596,7 @@ Examples:
     const allCommands = [
       'help', 'man', 'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm',
       'cat', 'nano', 'nmap', 'snake', 'apt', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser'
+      'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser', 'geemail'
     ];
 
     // Only include commands that are builtin or have binaries
@@ -1708,6 +1708,7 @@ Examples:
               onChange={(e) => {
                 setCurrentInput(e.target.value);
                 setTabCompletionState(null); // Reset tab completion state when input changes
+                setHistoryIndex(-1); // Reset history index when input changes
               }}
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent border-none outline-none text-white caret-green-400"
