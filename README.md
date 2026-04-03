@@ -230,7 +230,7 @@ Loading States: Add simulated loading animations and progress indicators
         x trying to make the fake google website appear correctly in the fake browser
             - may have made some headway!
     - protect good changes push
-    
+    - maybe addressed autocomplete, will test as we go.
 
 
 

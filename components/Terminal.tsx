@@ -68,6 +68,11 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     return JSON.parse(localStorage.getItem(installedKey) || '{}');
   };  const [passwordPrompt, setPasswordPrompt] = useState('');
   const [isRebooting, setIsRebooting] = useState(false);
+  const [tabCompletionState, setTabCompletionState] = useState<{
+    lastInput: string;
+    completions: string[];
+    index: number;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
   const isPasswordHandledRef = useRef(false);
@@ -1462,6 +1467,7 @@ Examples:
     if (e.key === 'Enter') {
       executeCommand(currentInput);
       setCurrentInput('');
+      setTabCompletionState(null);
     } else if (e.key === 'Tab') {
       e.preventDefault();
       handleTabCompletion();
@@ -1499,46 +1505,78 @@ Examples:
     const currentPart = parts[parts.length - 1];
     const prevParts = parts.slice(0, -1);
 
-    // Determine if this is command completion or path completion
-    const isPathCompletion = prevParts.length > 0 || currentPart.includes('/') || currentPart.startsWith('.');
+    let completions: string[] = [];
 
-    if (!isPathCompletion) {
-      // Command completion
-      const completions: string[] = getCommandCompletions(currentPart);
-      if (completions.length === 1) {
-        const newInput = [...prevParts, completions[0]].join(' ');
-        setCurrentInput(newInput);
-        inputRef.current?.setSelectionRange(newInput.length, newInput.length);
-      } else if (completions.length > 1) {
-        // Show possible completions
-        const commonPrefix: string = getCommonPrefix(completions);
-        if (commonPrefix.length > currentPart.length) {
-          const newInput = [...prevParts, commonPrefix].join(' ');
-          setCurrentInput(newInput);
-          inputRef.current?.setSelectionRange(newInput.length, newInput.length);
-        } else {
-          // Show all completions
-          setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
-        }
+    // Special handling for apt command
+    if (prevParts.length > 0 && prevParts[0] === 'apt') {
+      if (prevParts.length === 1) {
+        // Complete apt subcommands
+        completions = getAptSubcommandCompletions(currentPart);
+      } else if (prevParts.length === 2 && (prevParts[1] === 'install' || prevParts[1] === 'remove')) {
+        // Complete package names
+        completions = getAptPackageCompletions(currentPart);
+      } else {
+        // For other apt subcommands, treat as path completion if applicable
+        completions = getPathCompletions(currentPart);
       }
     } else {
-      // Path completion
-      const completions: string[] = getPathCompletions(currentPart);
-      if (completions.length === 1) {
-        const completedPath = completions[0];
-        const newInput = [...prevParts, completedPath].join(' ');
+      // Determine if this is command completion or path completion
+      const isPathCompletion = prevParts.length > 0 || currentPart.includes('/') || currentPart.startsWith('.');
+
+      if (!isPathCompletion) {
+        completions = getCommandCompletions(currentPart);
+      } else {
+        completions = getPathCompletions(currentPart);
+      }
+    }
+
+    if (completions.length === 0) {
+      return; // No completions available
+    }
+
+    // Check if this is a continuation of previous tab completion
+    if (tabCompletionState && tabCompletionState.lastInput === input && tabCompletionState.completions.length === completions.length) {
+      // Cycle through completions
+      const nextIndex = (tabCompletionState.index + 1) % completions.length;
+      const selectedCompletion = completions[nextIndex];
+      const newInput = [...prevParts, selectedCompletion].join(' ');
+      setCurrentInput(newInput);
+      inputRef.current?.setSelectionRange(newInput.length, newInput.length);
+      setTabCompletionState({
+        lastInput: input,
+        completions,
+        index: nextIndex
+      });
+    } else if (completions.length === 1) {
+      // Single completion - complete it
+      const newInput = [...prevParts, completions[0]].join(' ');
+      setCurrentInput(newInput);
+      inputRef.current?.setSelectionRange(newInput.length, newInput.length);
+      setTabCompletionState(null);
+    } else {
+      // Multiple completions - first complete common prefix, then show list on next tab
+      const commonPrefix = getCommonPrefix(completions);
+      if (commonPrefix.length > currentPart.length) {
+        const newInput = [...prevParts, commonPrefix].join(' ');
         setCurrentInput(newInput);
         inputRef.current?.setSelectionRange(newInput.length, newInput.length);
-      } else if (completions.length > 1) {
-        const commonPrefix: string = getCommonPrefix(completions);
-        if (commonPrefix.length > currentPart.length) {
-          const newInput = [...prevParts, commonPrefix].join(' ');
-          setCurrentInput(newInput);
-          inputRef.current?.setSelectionRange(newInput.length, newInput.length);
-        } else {
-          // Show all completions
-          setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
-        }
+        setTabCompletionState({
+          lastInput: input,
+          completions,
+          index: -1 // Not cycling yet
+        });
+      } else {
+        // No common prefix longer than current - show list and start cycling
+        setLines(prev => [...prev, { type: 'output', content: completions.join('  ') }]);
+        const selectedCompletion = completions[0];
+        const newInput = [...prevParts, selectedCompletion].join(' ');
+        setCurrentInput(newInput);
+        inputRef.current?.setSelectionRange(newInput.length, newInput.length);
+        setTabCompletionState({
+          lastInput: input,
+          completions,
+          index: 0
+        });
       }
     }
   };
@@ -1558,6 +1596,16 @@ Examples:
     });
 
     return availableCommands.filter(cmd => cmd.startsWith(prefix));
+  };
+
+  const getAptSubcommandCompletions = (prefix: string): string[] => {
+    const aptSubcommands = ['install', 'remove', 'update', 'upgrade', 'list', 'search'];
+    return aptSubcommands.filter(cmd => cmd.startsWith(prefix));
+  };
+
+  const getAptPackageCompletions = (prefix: string): string[] => {
+    const availablePackages = ['nano', 'nmap', 'browser', 'snake'];
+    return availablePackages.filter(pkg => pkg.startsWith(prefix));
   };
 
   const getPathCompletions = (prefix: string): string[] => {
@@ -1646,7 +1694,10 @@ Examples:
               ref={inputRef}
               type={awaitingPassword ? "password" : "text"}
               value={currentInput}
-              onChange={(e) => setCurrentInput(e.target.value)}
+              onChange={(e) => {
+                setCurrentInput(e.target.value);
+                setTabCompletionState(null); // Reset tab completion state when input changes
+              }}
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent border-none outline-none text-white caret-green-400"
               autoFocus
