@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and just built an in game, simulated browser. we are trying to make the fake website google.com look similarly to the real one. We will need to be able to make the websites look as realistic as they do in the game "Grey Hack", or better. Look over the game and see what has been done so far and please fix the issues. It is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and just built an in game, simulated browser. we are trying to make the fake website google.com look similarly to the real one. We will need to be able to make the websites look as realistic as they do in the game "Grey Hack", or better. So far, it is not working correctly. Look over the game and see what has been done so far and please fix the issues. It is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -77,6 +77,48 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
 - Maintain backward compatibility
 - Ensure all networking is simulated, no real connections
 - Keep Grey Hack-like single-player experience
+
+Issues Identified
+
+No CSS Support: Websites can't use stylesheets or classes - only inline styles work
+Simple Content: Most websites are plain text; Google lacks the actual Google logo, proper layout, and styling
+Unused Assets: The detailed google.html file in public/ isn't utilized
+Basic Forms: Input fields and buttons are functional but lack proper styling and behavior
+No Images/Media: No support for images, videos, or other media types
+Link Handling: Links prevent default but don't provide navigation feedback
+Missing Features: No bookmarks, advanced history, developer tools, or realistic browser behaviors
+
+Suggestions for Improvement
+1. Enhanced Website Content
+Use public/google.html: Replace the string content for google.com with the full HTML/CSS from public/google.html
+Add Realistic Content: Include proper logos (as text/art), accurate layouts, and multiple sections for major sites
+Procedural Content: Keep the random generation but add more detailed templates with inline CSS
+2. Improved HTML/CSS Parsing
+Upgrade Parser: Replace regex with a proper HTML parser library or enhance to handle:
+All standard HTML tags (<img>, <form>, <table>, <ul>/<li>, etc.)
+CSS class/id attributes
+Nested elements properly
+Style attributes and basic CSS properties
+CSS Support: Add basic CSS parsing for common properties (colors, fonts, layouts, positioning)
+3. Browser Enhancements
+Better Form Handling: Make inputs functional (focus states, typing simulation)
+Image Support: Add placeholder images or ASCII art representations
+Link Behavior: Show hover states, tooltips with URLs, and proper cursor changes
+Responsive Design: Make browser window properly resizable and handle different screen sizes
+4. Additional Features
+Bookmarks: Add bookmark functionality with persistent storage
+Advanced History: Full navigation history with timestamps
+Developer Tools: Add an inspector mode for viewing source/HTML structure
+Multiple Tabs: Enhanced tab management with better close/organize functionality
+5. Website Variety
+More Sites: Add realistic content for major sites (YouTube, Facebook, Twitter, etc.)
+Dynamic Content: Add simulated search results, user content, and interactive elements
+Consistent Styling: Ensure light/dark themes match real sites
+6. Grey Hack Realism
+Pixel-Perfect Recreation: Focus on accurate layouts, colors, and typography
+Interactive Elements: Make buttons, links, and forms feel responsive
+Browser Chrome: Improve the browser window appearance (address bar, tabs, etc.)
+Loading States: Add simulated loading animations and progress indicators
 
 
 
@@ -183,6 +225,7 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
     - pushed for new agent to improve browser.
     - improved uhhhhh TF out of the browser
         *still needs some serious help
+    - working on getting websites to look like websites, starting with google. 
         x trying to make the fake google website appear correctly in the fake browser
 
 

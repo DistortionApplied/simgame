@@ -1,3 +1,5 @@
+import { GOOGLE_HTML } from './google-template';
+
 export interface Website {
   domain: string;
   ip: string;
@@ -55,8 +57,8 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '4.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 4.0');
+        if (!parsed.version || parsed.version !== '6.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 6.0');
           return null;
         }
         // Convert Maps back from objects
@@ -120,7 +122,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-     version: '5.0' // Increment when templates change
+      version: '6.0' // Increment when templates change
     };
   }
 
@@ -177,17 +179,7 @@ export class MockInternet {
  private generateWebsiteContent(domain: string): string {
     // Generate simple HTML-like content for websites
     const templates = {
-      'google.com': `
-        <h1>Google</h1>
-        <input placeholder="Search Google or type a URL">
-        <button>Google Search</button>
-        <button>I'm Feeling Lucky</button>
-        <p>Google offered in: <a>Français</a> <a>Español</a></p>
-        <div>
-        <a>About</a> <a>Advertising</a> <a>Business</a> <a>How Search works</a>
-        <a>Privacy</a> <a>Terms</a> <a>Settings</a>
-        </div>
-      `,
+      'google.com': GOOGLE_HTML,
       'github.com': `
         <html>
         <head><title>GitHub</title></head>

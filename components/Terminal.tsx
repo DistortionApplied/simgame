@@ -1547,7 +1547,7 @@ Examples:
     const allCommands = [
       'help', 'man', 'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm',
       'cat', 'nano', 'nmap', 'snake', 'apt', 'sudo', 'su', 'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig'
+      'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser'
     ];
 
     // Only include commands that are builtin or have binaries
