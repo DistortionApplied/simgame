@@ -215,6 +215,7 @@ Issues Identified
     - think it's time to call it 2.0!
     - merged back to main branch
 2.0 rev & imp
+    - pushed to new internet_attempt branch
     x compose email screen needs a scroll bar. currently the player can not access a send button
     x googo need to function in the game.
     x Links on googo need to be worked on
