@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Needs to be changed to googo.com, but we can move on for now. We need to improve the geemail client. It needs more features typical to gmail. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Needs to be changed to googo.com, but we can move on for now. We need to make sure the geemail client is fully and correctly implemented, and then we need to improve it. It needs more features typical to gmail. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
