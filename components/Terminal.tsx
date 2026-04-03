@@ -27,12 +27,13 @@ interface TerminalProps {
   onOpenEditor: (filePath: string, content: string) => void;
   onOpenSnake: () => void;
   onOpenBrowser: (url: string) => void;
+  onOpenGeeMail: () => void;
   onReboot: () => void;
 }
 
-export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenBrowser, onReboot }: TerminalProps) {
+export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenBrowser, onOpenGeeMail, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
-  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser'];
+  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser', 'geemail'];
 
   const [lines, setLines] = useState<TerminalLine[]>([
     { type: 'output', content: `Welcome to Linux Sim Game, ${setupData?.playerName || 'User'}!` },
@@ -880,6 +881,16 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
         }
         // Open graphical browser instead of text output
         onOpenBrowser(`http://${domain}`);
+        break;
+      }
+
+      case 'geemail': {
+        if (!isPackageInstalled('geemail')) {
+          error = 'geemail: command not found\nTry: apt install geemail';
+          break;
+        }
+        // Open graphical email client
+        onOpenGeeMail();
         break;
       }
 

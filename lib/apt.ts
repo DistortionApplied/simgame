@@ -48,6 +48,15 @@ export const AVAILABLE_PACKAGES: Record<string, PackageInfo> = {
     size: '512 kB',
     dependencies: [],
     provides: ['web-browser']
+  },
+  'geemail': {
+    name: 'geemail',
+    version: '1.0-1',
+    description: 'GeeMail email client for sending and receiving virtual emails',
+    maintainer: 'GeeMail Team <geemail@ubuntu.com>',
+    size: '1,024 kB',
+    dependencies: [],
+    provides: ['email-client']
   }
 };
 

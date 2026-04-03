@@ -1,4 +1,8 @@
 import { GOOGLE_HTML } from './google-template';
+import { GITHUB_HTML } from './github-template';
+import { STACKOVERFLOW_HTML } from './stackoverflow-template';
+import { WIKIPEDIA_HTML } from './wikipedia-template';
+import { GEEMAIL_HTML } from './geemail-template';
 
 export interface Website {
   domain: string;
@@ -17,6 +21,23 @@ export interface Service {
   description?: string;
 }
 
+export interface EmailAccount {
+  email: string;
+  password: string;
+  displayName: string;
+  createdAt: string;
+}
+
+export interface Email {
+  id: string;
+  from: string;
+  to: string;
+  subject: string;
+  body: string;
+  timestamp: string;
+  read: boolean;
+}
+
 export interface Server {
   ip: string;
   hostname?: string;
@@ -31,6 +52,9 @@ export interface MockInternetData {
   websites: Website[];
   servers: Server[];
   dns: Map<string, string>;
+  emails: Email[];
+  emailAccounts: EmailAccount[];
+  websiteVisits: Set<string>;
   playerIP: string;
   gatewayIP: string;
   createdAt: string;
@@ -57,8 +81,8 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '6.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 6.0');
+        if (!parsed.version || parsed.version !== '13.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 13.0');
           return null;
         }
         // Convert Maps back from objects
@@ -66,6 +90,10 @@ export class MockInternet {
         parsed.servers.forEach((server: any) => {
           server.ports = new Map(Object.entries(server.ports || {}));
         });
+        // Ensure new fields exist for backward compatibility
+        parsed.emails = parsed.emails || [];
+        parsed.emailAccounts = parsed.emailAccounts || [];
+        parsed.websiteVisits = new Set(parsed.websiteVisits || []);
         return parsed;
       }
     } catch (error) {
@@ -82,7 +110,8 @@ export class MockInternet {
         servers: this.data.servers.map(server => ({
           ...server,
           ports: Object.fromEntries(server.ports)
-        }))
+        })),
+        websiteVisits: Array.from(this.data.websiteVisits)
       };
       localStorage.setItem(this.getStorageKey(), JSON.stringify(dataToSave));
     } catch (error) {
@@ -119,10 +148,13 @@ export class MockInternet {
       websites,
       servers,
       dns,
+      emails: [],
+      emailAccounts: [],
+      websiteVisits: new Set(),
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '11.0' // Increment when templates change
+      version: '14.0' // Increment when templates change
     };
   }
 
@@ -154,6 +186,7 @@ export class MockInternet {
       'netflix.com',
       'facebook.com',
       'twitter.com',
+      'geemail.com',
       'example.com',
       'test.com',
       'localhost'
@@ -180,97 +213,10 @@ export class MockInternet {
     // Generate simple HTML-like content for websites
     const templates = {
       'google.com': GOOGLE_HTML,
-      'github.com': `
-        <html>
-        <head><title>GitHub</title></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: #0d1117; color: #f0f6fc;">
-        <div style="border-bottom: 1px solid #30363d; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-        <h1 style="color: #f0f6fc; font-size: 24px; font-weight: 600; margin: 0;">GitHub</h1>
-        <nav style="display: flex; gap: 16px; font-size: 14px;">
-        <a href="#" style="color: #f0f6fc; text-decoration: none;">Product</a>
-        <a href="#" style="color: #f0f6fc; text-decoration: none;">Solutions</a>
-        <a href="#" style="color: #f0f6fc; text-decoration: none;">Open Source</a>
-        <a href="#" style="color: #f0f6fc; text-decoration: none;">Pricing</a>
-        </nav>
-        </div>
-        <div style="display: flex; gap: 8px;">
-        <input type="text" placeholder="Search or jump to..." style="background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; color: #f0f6fc; width: 200px;">
-        <button style="background: #238636; color: #f0f6fc; border: none; border-radius: 6px; padding: 8px 16px; font-weight: 500;">Sign in</button>
-        </div>
-        </div>
-
-        <div style="padding: 80px 32px; text-align: center;">
-        <h1 style="font-size: 48px; font-weight: 600; color: #f0f6fc; margin-bottom: 24px;">Where the world builds software</h1>
-        <p style="font-size: 20px; color: #c9d1d9; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Millions of developers and companies build, ship, and maintain their software on GitHub—the largest and most advanced development platform in the world.</p>
-        <div style="display: flex; justify-content: center; gap: 16px;">
-        <button style="background: #238636; color: #f0f6fc; border: none; border-radius: 6px; padding: 12px 24px; font-size: 16px; font-weight: 500;">Get started for free</button>
-        <button style="background: #21262d; color: #f0f6fc; border: 1px solid #30363d; border-radius: 6px; padding: 12px 24px; font-size: 16px;">Start a free trial</button>
-        </div>
-        </div>
-
-        <div style="background: #161b22; border-top: 1px solid #30363d; padding: 40px 32px; margin-top: 80px;">
-        <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between;">
-        <div>
-        <h3 style="color: #f0f6fc; margin-bottom: 16px;">Product</h3>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Features</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Security</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Team</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Enterprise</a>
-        </div>
-        </div>
-        <div>
-        <h3 style="color: #f0f6fc; margin-bottom: 16px;">Platform</h3>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Developer API</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Partners</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Atom</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Electron</a>
-        </div>
-        </div>
-        <div>
-        <h3 style="color: #f0f6fc; margin-bottom: 16px;">Support</h3>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Help</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Community Forum</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Professional Services</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Status</a>
-        </div>
-        </div>
-        <div>
-        <h3 style="color: #f0f6fc; margin-bottom: 16px;">Company</h3>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">About</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Blog</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Careers</a>
-        <a href="#" style="color: #c9d1d9; text-decoration: none; font-size: 14px;">Press</a>
-        </div>
-        </div>
-        </div>
-        </div>
-        </body>
-        </html>
-      `,
-      'stackoverflow.com': `
-        <html>
-        <head><title>Stack Overflow</title></head>
-        <body>
-        <h1>Stack Overflow</h1>
-        <p>Where developers learn, share, & build careers</p>
-        </body>
-        </html>
-      `,
-      'wikipedia.org': `
-        <html>
-        <head><title>Wikipedia</title></head>
-        <body>
-        <h1>Wikipedia</h1>
-        <p>The Free Encyclopedia</p>
-        <p>Wikipedia is a multilingual free online encyclopedia written and maintained by a community of volunteers.</p>
-        </body>
-        </html>
-      `,
+      'github.com': GITHUB_HTML,
+      'stackoverflow.com': STACKOVERFLOW_HTML,
+      'wikipedia.org': WIKIPEDIA_HTML,
+      'geemail.com': GEEMAIL_HTML,
       'default': `
         <html>
         <head><title>${domain}</title></head>
@@ -282,7 +228,6 @@ export class MockInternet {
         </html>
       `
     };
-
     return templates[domain as keyof typeof templates] || templates.default.replace('${domain}', domain);
   }
 
@@ -388,5 +333,61 @@ export class MockInternet {
 
   getDNSEntries(): Array<[string, string]> {
     return Array.from(this.data.dns.entries());
+  }
+
+  // Email methods
+  getEmails(): Email[] {
+    return [...this.data.emails];
+  }
+
+  addEmail(email: Email): void {
+    this.data.emails.push(email);
+    this.saveToLocalStorage();
+  }
+
+  getEmailAccounts(): EmailAccount[] {
+    return [...this.data.emailAccounts];
+  }
+
+  createEmailAccount(account: EmailAccount): boolean {
+    // Check if account already exists
+    if (this.data.emailAccounts.some(acc => acc.email === account.email)) {
+      return false;
+    }
+    this.data.emailAccounts.push(account);
+    this.saveToLocalStorage();
+    return true;
+  }
+
+  getEmailAccount(email: string): EmailAccount | null {
+    return this.data.emailAccounts.find(acc => acc.email === email) || null;
+  }
+
+  authenticateEmailAccount(email: string, password: string): boolean {
+    const account = this.getEmailAccount(email);
+    return account ? account.password === password : false;
+  }
+
+  // Website visit tracking
+  recordWebsiteVisit(domain: string, setupData: any): void {
+    this.data.websiteVisits.add(domain);
+    this.saveToLocalStorage();
+
+    // Special handling for geemail.com - create account on first visit
+    if (domain === 'geemail.com' && setupData?.playerName) {
+      const playerEmail = `${setupData.playerName}@geemail.com`;
+      if (!this.getEmailAccount(playerEmail)) {
+        this.createEmailAccount({
+          email: playerEmail,
+          password: setupData.userPassword,
+          displayName: setupData.playerName,
+          createdAt: new Date().toISOString()
+        });
+      }
+    }
+  }
+
+  hasVisitedWebsite(domain: string): boolean {
+    return this.data.websiteVisits.has(domain);
   }
 }

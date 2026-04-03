@@ -8,6 +8,7 @@ import SetupWizard from '../components/SetupWizard';
 import NanoEditor from '../components/NanoEditor';
 import SnakeGame from '../components/SnakeGame';
 import GraphicalBrowser from '../components/GraphicalBrowser';
+import GeeMail from '../components/GeeMail';
 import { MockInternet } from '../lib/internet';
 
 interface GameSetup {
@@ -18,7 +19,7 @@ interface GameSetup {
   createdAt: string;
 }
 
-type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing' | 'snake' | 'browsing';
+type GameState = 'boot' | 'login' | 'setup' | 'playing' | 'editing' | 'snake' | 'browsing' | 'geemail';
 
 interface EditorState {
   filePath: string;
@@ -91,6 +92,14 @@ export default function Home() {
     setGameState('playing');
   };
 
+  const handleOpenGeeMail = () => {
+    setGameState('geemail');
+  };
+
+  const handleExitGeeMail = () => {
+    setGameState('playing');
+  };
+
   const handleSaveFile = async (content: string) => {
     try {
       // Import filesystem dynamically to avoid circular dependencies
@@ -135,7 +144,7 @@ export default function Home() {
   }
 
   if (gameState === 'playing') {
-    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onOpenSnake={handleOpenSnake} onOpenBrowser={handleOpenBrowser} onReboot={handleReboot} />;
+    return <Terminal setupData={setupData} onOpenEditor={handleOpenEditor} onOpenSnake={handleOpenSnake} onOpenBrowser={handleOpenBrowser} onOpenGeeMail={handleOpenGeeMail} onReboot={handleReboot} />;
   }
 
   if (gameState === 'editing' && editorState) {
@@ -155,6 +164,10 @@ export default function Home() {
 
   if (gameState === 'browsing' && mockInternet) {
     return <GraphicalBrowser initialUrl={browserUrl} onClose={handleExitBrowser} mockInternet={mockInternet} setupData={setupData} />;
+  }
+
+  if (gameState === 'geemail') {
+    return <GeeMail onClose={handleExitGeeMail} setupData={setupData} mockInternet={mockInternet!} />;
   }
 
   return null;
