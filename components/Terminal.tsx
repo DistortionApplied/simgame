@@ -861,7 +861,7 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
           break;
         }
         if (args.length === 0) {
-          error = 'browser: missing target domain\nTry: browser google.com';
+          error = 'browser: missing target domain\nTry: browser googo.com';
           break;
         }
         const domain = args[0];

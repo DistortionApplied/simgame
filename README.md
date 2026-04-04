@@ -39,11 +39,11 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Changed to googo.com, except the actual url. Let's go ahead and do that now. change google.com to googo.com. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Changed to googo.com, Now we need to make it function in game like google functions. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
-  I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the browser, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
+  I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the mock internet, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
 
 
 # Context - Current State and Recent Changes
@@ -73,6 +73,30 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
 - Ensure all networking is simulated, no real connections
 - Keep Grey Hack-like single-player experience
 
+
+Improve Browser Realism (Grey Hack Style):
+
+Add link handling in GraphicalBrowser (intercept clicks, navigate within mock internet).
+Implement form submission for interactive websites.
+Add loading animations and progress indicators.
+Enhance HTML rendering for better pixel-perfect layouts (e.g., CSS parsing, responsive design).
+Add simulated network delays for realism.
+Fix Known Issues:
+
+Add scroll bar to GeeMail compose screen.
+Make Googo links functional (search, navigation).
+Improve existing websites (Wikipedia, GitHub, etc.) with more interactive elements.
+Add bank website to mock internet with basic banking interface.
+Enhance Mock Internet:
+
+Add more servers/services for nmap scanning variety.
+Implement server-side logic for dynamic websites (e.g., search results).
+Add firewall/ports logic affecting connectivity.
+Testing/Compatibility:
+
+Run bun typecheck and bun lint after changes.
+Test browser commands, navigation, email, and ensure no filesystem corruption.
+Verify persistence across sessions.
 
 ---Grey Hack Realism
 Pixel-Perfect Recreation: Focus on accurate layouts, colors, and typography
@@ -216,10 +240,12 @@ Issues Identified
     - merged back to main branch
 2.0 rev & imp
     - pushed to new internet_attempt branch
-    x compose email screen needs a scroll bar. currently the player can not access a send button
+    - compose email screen needs a scroll bar. currently the player can not access a send button
+    - added auto deletion of old save game data.
+    - new agent push
     x googo need to function in the game.
     x Links on googo need to be worked on
-    x google.com needs to chang to googo.com
+    - google.com changed to googo.com
     x need to work on existing websites 
     x need to add a bank website
     x 

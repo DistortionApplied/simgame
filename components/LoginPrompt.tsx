@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 interface GameSetup {
   playerName: string;
@@ -8,6 +8,7 @@ interface GameSetup {
   rootPassword: string;
   userPassword: string;
   createdAt: string;
+  deletedAt?: string;
 }
 
 interface LoginPromptProps {
@@ -22,6 +23,41 @@ export default function LoginPrompt({ onLoginSuccess, onStartNewGame }: LoginPro
   const [mode, setMode] = useState<'login' | 'delete'>('login');
   const [error, setError] = useState('');
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+
+  // Clean up old deleted saves on component mount
+  React.useEffect(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days in ms
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('linux-sim-setup-')) {
+        const username = key.replace('linux-sim-setup-', '');
+        const setupData = localStorage.getItem(key);
+        if (setupData) {
+          try {
+            const setup: GameSetup = JSON.parse(setupData);
+            // Only remove if marked as deleted and older than 30 days
+            if (setup.deletedAt) {
+              const deletedAt = new Date(setup.deletedAt);
+              if (deletedAt < thirtyDaysAgo) {
+                // Remove all data for this deleted user
+                localStorage.removeItem(key); // setup
+                localStorage.removeItem(`linux-sim-filesystem-${username}`);
+                localStorage.removeItem(`linux-sim-internet-${username}`);
+                localStorage.removeItem(`linux-sim-installed-packages-${username}`);
+                localStorage.removeItem(`browser-bookmarks-${username}`);
+                localStorage.removeItem(`browser-history-${username}`);
+              }
+            }
+          } catch (error) {
+            // Invalid data, remove it
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    }
+  }, []);
 
   const handleUsernameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,16 +111,16 @@ export default function LoginPrompt({ onLoginSuccess, onStartNewGame }: LoginPro
           if (mode === 'login') {
             onLoginSuccess(setupData);
           } else {
-            // Delete mode
-            localStorage.removeItem(setupKey);
-            localStorage.removeItem(filesystemKey);
+            // Delete mode - mark as deleted instead of removing immediately
+            setupData.deletedAt = new Date().toISOString();
+            localStorage.setItem(setupKey, JSON.stringify(setupData));
             setError('');
             setMode('login');
             setUsername('');
             setPassword('');
             setStage('username');
             // Show success message briefly
-            setTimeout(() => setError(`Account '${username}' deleted successfully.`), 100);
+            setTimeout(() => setError(`Account '${username}' marked for deletion. Data will be removed in 30 days.`), 100);
           }
         } else {
           setError(mode === 'login' ? 'Login incorrect' : 'Password incorrect');
@@ -111,7 +147,18 @@ export default function LoginPrompt({ onLoginSuccess, onStartNewGame }: LoginPro
       const key = localStorage.key(i);
       if (key && key.startsWith('linux-sim-setup-')) {
         const username = key.replace('linux-sim-setup-', '');
-        users.push(username);
+        const setupData = localStorage.getItem(key);
+        if (setupData) {
+          try {
+            const setup: GameSetup = JSON.parse(setupData);
+            // Exclude deleted accounts
+            if (!setup.deletedAt) {
+              users.push(username);
+            }
+          } catch (error) {
+            // Invalid data, skip
+          }
+        }
       }
     }
     return users.sort();

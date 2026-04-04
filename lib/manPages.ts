@@ -990,11 +990,11 @@ OPTIONS
                  Display help message and exit.
 
 EXAMPLES
-        ping google.com
-                 Ping the host google.com.
+        ping googo.com
+                 Ping the host googo.com.
 
-        ping -c 4 google.com
-                 Ping the host google.com 4 times.
+        ping -c 4 googo.com
+                 Ping the host googo.com 4 times.
 
         ping -i 0.5 192.168.1.1
                  Ping with 0.5 second intervals.
@@ -1257,15 +1257,15 @@ DESCRIPTION
         Browser is a simple terminal-based web browser for viewing simulated
         websites in the mock internet environment.
 
-        DOMAIN specifies the domain name to browse (e.g., google.com).
+        DOMAIN specifies the domain name to browse (e.g., googo.com).
 
 OPTIONS
         -h, --help
                 Display help information.
 
 EXAMPLES
-        browser google.com
-                View the Google homepage.
+        browser googo.com
+                View the Googo homepage.
 
         browser --help
                 Display this help message.

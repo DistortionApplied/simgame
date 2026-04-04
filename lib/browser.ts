@@ -12,7 +12,7 @@ export function executeBrowser(
 Usage: browser <domain>
 
 Examples:
-  browser google.com    View the Google homepage
+  browser googo.com    View the Googo homepage
   browser github.com    View the GitHub homepage
 
 Note: This browser displays simulated website content in text format.

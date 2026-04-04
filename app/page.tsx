@@ -48,8 +48,9 @@ export default function Home() {
     localStorage.setItem(key, JSON.stringify(completeSetup));
     setSetupData(completeSetup);
 
-    // Clear existing filesystem for this user
+    // Clear existing filesystem and internet data for this user
     localStorage.removeItem(`linux-sim-filesystem-${data.playerName}`);
+    localStorage.removeItem(`linux-sim-internet-${data.playerName}`);
 
     setMockInternet(new MockInternet(completeSetup));
     setGameState('playing');

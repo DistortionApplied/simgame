@@ -94,8 +94,8 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '15.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 15.0');
+        if (!parsed.version || parsed.version !== '16.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 16.0');
           return null;
         }version: '15.0' // Increment when templates change
         // Convert Maps back from objects
@@ -175,7 +175,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '15.0' // Increment when templates change
+      version: '16.0' // Increment when templates change
     };
   }
 
@@ -196,8 +196,8 @@ export class MockInternet {
   }
 
   private generateWebsites(): Website[] {
-    const domains = [
-      'google.com',
+   const domains = [
+      'googo.com',
       'github.com',
       'stackoverflow.com',
       'wikipedia.org',
@@ -233,7 +233,7 @@ export class MockInternet {
  private generateWebsiteContent(domain: string): string {
     // Generate simple HTML-like content for websites
     const templates = {
-      'google.com': GOOGLE_HTML,
+      'googo.com': GOOGLE_HTML,
       'github.com': GITHUB_HTML,
       'stackoverflow.com': STACKOVERFLOW_HTML,
       'wikipedia.org': WIKIPEDIA_HTML,

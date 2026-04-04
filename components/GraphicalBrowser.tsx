@@ -40,7 +40,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const dragOffsetRef = useRef(dragOffset);
 
   // Determine if the current website should be rendered in light mode
-  const isLightTheme = currentWebsite?.domain === 'google.com' || currentWebsite?.domain === 'wikipedia.org';
+  const isLightTheme = currentWebsite?.domain === 'googo.com' || currentWebsite?.domain === 'wikipedia.org';
 
   // Load bookmarks and history from localStorage
   const loadBookmarks = useCallback(() => {
@@ -283,7 +283,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
               className={`px-3 py-1 mr-1 rounded-t cursor-pointer flex items-center text-white ${
                 activeTab === index ? 'bg-gray-900 border-t border-l border-r border-gray-600' : 'bg-gray-700 hover:bg-gray-600'
               }`}
-              onClick={() => setActiveTab(index)}
+              onClick={() => { setActiveTab(index); setCurrentUrl(tabs[index].url); }}
             >
               <span className="text-sm mr-2">{tab.title}</span>
               {tabs.length > 1 && (

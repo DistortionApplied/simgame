@@ -430,11 +430,11 @@ OPTIONS
                 Display this help message.
 
 EXAMPLES
-        ping google.com
-                Ping google.com continuously.
+        ping googo.com
+                Ping googo.com continuously.
 
-        ping -c 4 google.com
-                Ping google.com 4 times.
+        ping -c 4 googo.com
+                Ping googo.com 4 times.
 
         ping -t 10 192.168.1.1
                 Ping with 10 second timeout.

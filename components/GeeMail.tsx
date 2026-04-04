@@ -107,27 +107,59 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
   const handleComposeSubmit = useCallback(() => {
     if (!composeData.to || !composeData.subject || !composeData.body) return;
 
-    const newEmail: Email = {
-      id: Date.now().toString(),
-      from: `${setupData?.playerName || 'user'}@geemail.com`,
+    const senderEmail = `${setupData?.playerName || 'user'}@geemail.com`;
+    const timestamp = new Date().toISOString();
+    const threadId = Date.now().toString();
+
+    // Parse recipients
+    const toRecipients = composeData.to.split(',').map(s => s.trim()).filter(s => s);
+    const ccRecipients = composeData.cc ? composeData.cc.split(',').map(s => s.trim()).filter(s => s) : [];
+    const bccRecipients = composeData.bcc ? composeData.bcc.split(',').map(s => s.trim()).filter(s => s) : [];
+
+    const allRecipients = [...toRecipients, ...ccRecipients, ...bccRecipients];
+
+    // Create sent email for sender
+    const sentEmail: Email = {
+      id: `${threadId}-sent`,
+      from: senderEmail,
       to: composeData.to,
-      cc: composeData.cc ? composeData.cc.split(',').map(s => s.trim()) : [],
-      bcc: composeData.bcc ? composeData.bcc.split(',').map(s => s.trim()) : [],
+      cc: ccRecipients,
+      bcc: bccRecipients,
       subject: composeData.subject,
       body: composeData.body,
-      timestamp: new Date().toISOString(),
+      timestamp,
       read: true,
       starred: false,
       labels: ['sent'],
-      threadId: Date.now().toString()
+      threadId
     };
 
-    mockInternet.addEmail(newEmail);
+    mockInternet.addEmail(sentEmail);
+
+    // Create inbox emails for each recipient
+    allRecipients.forEach((recipient, index) => {
+      const inboxEmail: Email = {
+        id: `${threadId}-inbox-${index}`,
+        from: senderEmail,
+        to: recipient,
+        cc: recipient === composeData.to ? ccRecipients : [],
+        bcc: [],
+        subject: composeData.subject,
+        body: composeData.body,
+        timestamp,
+        read: false,
+        starred: false,
+        labels: ['inbox'],
+        threadId
+      };
+
+      mockInternet.addEmail(inboxEmail);
+    });
+
     setEmails(mockInternet.getEmails());
-    setFilteredEmails(mockInternet.getEmailsByLabel(currentView === 'compose' ? 'inbox' : currentView));
     setComposeData({ to: '', cc: '', bcc: '', subject: '', body: '' });
     setCurrentView('inbox');
-  }, [composeData, setupData, mockInternet, currentView]);
+  }, [composeData, setupData, mockInternet]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDragging(true);
@@ -503,7 +535,7 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
           </div>
         ) : (
           /* Compose View */
-          <div style={{ padding: '16px', width: '100%', backgroundColor: '#2d3748' }}>
+          <div style={{ padding: '16px', width: '100%', height: '100%', backgroundColor: '#2d3748', overflowY: 'auto' }}>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#e2e8f0' }}>To:</label>
               <input
