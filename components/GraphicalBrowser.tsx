@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MockInternet, Website } from '../lib/internet';
+import { GoogoSearchPage, generateSearchResults } from './Googo';
 
 interface GameSetup {
   playerName: string;
@@ -38,6 +39,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const dragOffsetRef = useRef(dragOffset);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState<string | null>(null);
 
   // Determine if the current website should be rendered in light mode
   const isLightTheme = currentWebsite?.domain === 'googo.com' || currentWebsite?.domain === 'wikipedia.org';
@@ -85,8 +88,48 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   }, [loadBookmarks, loadHistory]);
 
   useEffect(() => {
-    // Remove http:// if present
-    const domain = currentUrl.replace(/^https?:\/\//, '');
+    let urlObj: URL;
+    try {
+      urlObj = new URL(currentUrl.startsWith('http') ? currentUrl : 'http://' + currentUrl);
+    } catch (error) {
+      // Invalid URL
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentWebsite({
+        domain: currentUrl,
+        ip: '',
+        content: `<html><body><h1>Error</h1><p>Invalid URL: '${currentUrl}'</p></body></html>`,
+        type: 'static',
+        title: 'Error'
+      });
+      setUrlInput(currentUrl);
+      return;
+    }
+
+    const domain = urlObj.hostname;
+    const path = urlObj.pathname;
+    const searchParams = urlObj.searchParams;
+
+    // Handle Googo search
+    if (domain === 'googo.com' && path === '/search') {
+      const query = searchParams.get('q') || '';
+      const isLucky = searchParams.has('lucky');
+      const searchResults = generateSearchResults(query, isLucky, mockInternet);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentWebsite({
+        domain: 'googo.com',
+        ip: mockInternet.resolveDomain('googo.com') || '',
+        content: searchResults,
+        type: 'static',
+        title: `Googo Search${query ? ` - ${query}` : ''}`
+      });
+      setUrlInput(currentUrl);
+      return;
+    }
+
+    // Reset search query if not on googo.com
+    if (domain !== 'googo.com') {
+      setSearchQuery(null);
+    }
 
     // Try to resolve domain
     const ip = mockInternet.resolveDomain(domain);
@@ -127,7 +170,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
     navigateTo(urlInput);
   };
 
-  const navigateTo = (url: string) => {
+  const navigateTo = React.useCallback((url: string) => {
     setCurrentUrl(url);
     // Add to history if different from current
     if (history[historyIndex] !== url) {
@@ -141,7 +184,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
     const newTabs = [...tabs];
     newTabs[activeTab] = { ...newTabs[activeTab], url, title: currentWebsite?.title || url };
     setTabs(newTabs);
-  };
+  }, [history, historyIndex, tabs, activeTab, currentWebsite, saveHistory]);
 
   const goBack = () => {
     if (historyIndex > 0) {
@@ -240,7 +283,35 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  // Handle link clicks in content
+  React.useEffect(() => {
+    const handleContentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'A' && target.getAttribute('href')) {
+        e.preventDefault();
+        const href = target.getAttribute('href')!;
+        navigateTo(href);
+      }
+    };
 
+    const contentDiv = contentRef.current;
+    if (contentDiv) {
+      contentDiv.addEventListener('click', handleContentClick);
+      return () => contentDiv.removeEventListener('click', handleContentClick);
+    }
+  }, [currentWebsite]);
+
+  // Listen for navigation messages from embedded content
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'navigate') {
+        navigateTo(event.data.url);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [navigateTo]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50">
@@ -405,10 +476,28 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
         </div>
 
         {/* Content area */}
-        <div className={`flex-1 overflow-auto p-4 ${isLightTheme ? 'bg-white text-black' : 'bg-gray-900 text-white'}`}>
-          {currentWebsite ? (
-            <div className="max-w-4xl mx-auto">
-              <div dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />
+        <div className={`flex-1 overflow-auto ${isLightTheme ? 'bg-white text-black' : 'bg-gray-900 text-white'}`}>
+          {currentWebsite?.domain === 'googo.com' ? (
+            searchQuery ? (
+              <div className="max-w-4xl mx-auto p-4">
+                <div ref={contentRef} dangerouslySetInnerHTML={{ __html: generateSearchResults(searchQuery, false, mockInternet) }} />
+              </div>
+            ) : (
+              <GoogoSearchPage onSearch={(q, lucky) => {
+                if (lucky) {
+                  const results = generateSearchResults(q, true, mockInternet);
+                  const match = results.match(/url=(http[^"]*)/);
+                  if (match) {
+                    navigateTo(match[1]);
+                  }
+                } else {
+                  setSearchQuery(q);
+                }
+              }} />
+            )
+          ) : currentWebsite ? (
+            <div className="max-w-4xl mx-auto p-4">
+              <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400">

@@ -68,7 +68,8 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
     return JSON.parse(localStorage.getItem(installedKey) || '{}');
   };  const [passwordPrompt, setPasswordPrompt] = useState('');
-  const [isRebooting, setIsRebooting] = useState(false);
+ const [isRebooting, setIsRebooting] = useState(false);
+  const [installingPackage, setInstallingPackage] = useState<string | null>(null);
   const [tabCompletionState, setTabCompletionState] = useState<{
     lastInput: string;
     completions: string[];
@@ -115,6 +116,78 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     if (node.parent && node.parent.children) {
       node.parent.children.delete(node.name);
     }
+  };
+
+  const startPackageInstallation = (packageName: string) => {
+    setInstallingPackage(packageName);
+    const pkg = AVAILABLE_PACKAGES[packageName];
+
+    // Add initial lines
+    const initialLines: TerminalLine[] = [
+      { type: 'input', content: `apt install ${packageName}`, commandPrompt: currentPrompt },
+      { type: 'output', content: `Reading package lists... Done` },
+      { type: 'output', content: `Building dependency tree... Done` },
+      { type: 'output', content: `Reading state information... Done` },
+      { type: 'output', content: `The following NEW packages will be installed:` },
+      { type: 'output', content: `  ${packageName}` },
+      { type: 'output', content: `0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.` },
+      { type: 'output', content: `Need to get ${pkg.size} of archives.` },
+      { type: 'output', content: `After this operation, ${pkg.size} of additional disk space will be used.` },
+      { type: 'output', content: `Get:1 http://archive.ubuntu.com/ubuntu focal/universe ${packageName} ${pkg.version} [${pkg.size}]` },
+      { type: 'output', content: `Fetched ${pkg.size} in 1s (500 kB/s)` },
+      { type: 'output', content: `Selecting previously unselected package ${packageName}.` },
+      { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
+      { type: 'output', content: `Unpacking ${packageName} (${pkg.version}) ...` }
+    ];
+    setLines(prev => [...prev, ...initialLines]);
+
+    // Simulate progress with timeouts
+    let progress = 0;
+    const totalSteps = 10;
+    const interval = setInterval(() => {
+      progress++;
+      const progressBar = '[' + '='.repeat(progress) + ' '.repeat(totalSteps - progress) + ']';
+      setLines(prev => {
+        const newLines = [...prev];
+        // Update the last line with progress
+        if (newLines[newLines.length - 1].content.startsWith('Unpacking')) {
+          newLines[newLines.length - 1] = { type: 'output', content: `Unpacking ${packageName} (${pkg.version}) ... ${progressBar} ${Math.round(progress / totalSteps * 100)}%` };
+        } else {
+          newLines.push({ type: 'output', content: `Setting up ${packageName} (${pkg.version}) ... ${progressBar} ${Math.round(progress / totalSteps * 100)}%` });
+        }
+        return newLines;
+      });
+
+      if (progress >= totalSteps) {
+        clearInterval(interval);
+        // Complete installation
+        setLines(prev => [...prev, { type: 'output', content: `Setting up ${packageName} (${pkg.version}) ...` }, { type: 'output', content: '' }]);
+
+        // Mark as installed
+        const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+        const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+        installed[packageName] = { ...pkg, installedAt: new Date().toISOString() };
+        localStorage.setItem(installedKey, JSON.stringify(installed));
+
+        // Create files
+        fs.createNewDirectory(`/usr/share/${packageName}`);
+        fs.createNewFile(`/usr/share/${packageName}/version.txt`);
+        fs.writeFile(`/usr/share/${packageName}/version.txt`, pkg.version);
+
+        if (packageName === 'nano') {
+          fs.createNewFile(`/bin/nano.bin`);
+          fs.writeFile(`/bin/nano.bin`, '#!/bin/bash\n# nano text editor binary\n');
+        } else if (packageName === 'nmap') {
+          fs.createNewFile(`/bin/nmap.bin`);
+          fs.writeFile(`/bin/nmap.bin`, '#!/bin/bash\n# nmap network scanner binary\n');
+        } else if (packageName === 'snake') {
+          fs.createNewFile(`/bin/snake.bin`);
+          fs.writeFile(`/bin/snake.bin`, '#!/bin/bash\n# snake game binary\n');
+        }
+
+        setInstallingPackage(null);
+      }
+    }, 300); // 300ms per step, total ~3 seconds
   };
 
   const executeCommand = (command: string) => {
@@ -1293,6 +1366,20 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
       }
 
       case 'apt': {
+        if (args[0] === 'install' && args.length > 1) {
+          const packageName = args[1];
+          if (!AVAILABLE_PACKAGES[packageName]) {
+            error = `E: Unable to locate package ${packageName}`;
+            break;
+          }
+          if (isPackageInstalled(packageName)) {
+            output = `${packageName} is already the newest version (${AVAILABLE_PACKAGES[packageName].version}).`;
+            break;
+          }
+          // Start installation process
+          startPackageInstallation(packageName);
+          break;
+        }
         const result = executeApt(args, command, currentPrompt, setupData, fs, AVAILABLE_PACKAGES, isPackageInstalled);
         const linesToAdd = result.lines;
         if (linesToAdd) {
@@ -1705,6 +1792,7 @@ Examples:
               ref={inputRef}
               type={awaitingPassword ? "password" : "text"}
               value={currentInput}
+              disabled={!fs || !!installingPackage}
               onChange={(e) => {
                 setCurrentInput(e.target.value);
                 setTabCompletionState(null); // Reset tab completion state when input changes
@@ -1713,7 +1801,6 @@ Examples:
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent border-none outline-none text-white caret-green-400"
               autoFocus
-              disabled={!fs}
               placeholder={awaitingPassword ? "" : ""}
               spellCheck="false"
               autoCorrect="off"

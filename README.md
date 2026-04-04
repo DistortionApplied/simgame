@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. we have gotten google.com sort of settled. Changed to googo.com, Now we need to make it function in game like google functions. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. I need to fix a bug with apt install that was introduced when I implemented a progress bar to the install process. the cursor doesn't go back to prompt when it's done without the player clicking. the cursor needs to go back to prompt automatically. Look through and find the problem. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -240,15 +240,26 @@ Issues Identified
     - merged back to main branch
 2.0 rev & imp
     - pushed to new internet_attempt branch
-    - compose email screen needs a scroll bar. currently the player can not access a send button
+    - compose email screen has a scroll bar. currently the player can access a send button
     - added auto deletion of old save game data.
+    - improved apt realism
     - new agent push
-    x googo need to function in the game.
-    x Links on googo need to be worked on
+    
+    - made a Googo.tsx file for googo's search functions
     - google.com changed to googo.com
+    - push for new agent
+    x googo needs to function in the game.
+        - attempted this but efforts did not work.
+        - made a little headway
+        x drastic improvement needed
     x need to work on existing websites 
     x need to add a bank website
-    x 
+    x gotta get IP addys involved
+    x need a whois command
+    x apt install bug, cursor needs to go back to prompt after install complete
+    x the browser's window wackiness needs to chill
+    x Links on googo need to be worked on
+
     
 
 
