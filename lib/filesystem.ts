@@ -424,9 +424,10 @@ export class FakeFileSystem {
       '  Use "save" to manually save, "reset" to start fresh.\n\n' +
       'Package Management:\n' +
       '  Install additional software with apt: apt install <package>\n' +
-      '  Available package: nano (text editor)\n' +
-      '  Example: apt install nano (then use nano <file> to edit)\n' +
-      '  Remove with: apt remove nano\n\n' +
+      '  Available packages: nano (text editor), browser (web browser), nmap (network scanner), snake (game), geemail (email client)\n' +
+      '  Examples: apt install nano (then use nano <file> to edit)\n' +
+      '            apt install browser (then use browser <domain> to browse)\n' +
+      '  Remove with: apt remove <package>\n\n' +
       'Learning Linux:\n' +
       '  Use "man <command>" to read detailed documentation for any command.\n' +
       '  Example: man ls, man cd, man chmod, man apt\n\n' +
@@ -557,7 +558,7 @@ export class FakeFileSystem {
     const requiredManPages = [
       'ls', 'cd', 'pwd', 'mkdir', 'rmdir', 'touch', 'rm', 'cat', 'nano', 'apt', 'sudo', 'su',
       'cp', 'mv', 'chmod', 'whoami', 'id', 'echo', 'grep', 'find',
-      'man', 'help', 'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'nmap', 'ifconfig'
+      'man', 'help', 'save', 'reset', 'debug', 'clear', 'reboot', 'adduser', 'userdel', 'passwd', 'ping', 'nmap', 'ifconfig', 'browser'
     ];
 
     for (const cmd of requiredManPages) {

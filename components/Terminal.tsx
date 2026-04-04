@@ -291,7 +291,7 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
 
     switch (cmd) {
       case 'help':
-        output = getCommandHelp('help');
+        output = getCommandHelp('help', getInstalledPackages());
         break;
 
       case 'ls': {
@@ -933,8 +933,21 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
           error = 'browser: command not found\nTry: apt install browser';
           break;
         }
+        if (args.includes('-h') || args.includes('--help')) {
+          output = `Browser v1.0 - Simple Terminal Web Browser
+
+Usage: browser <domain>
+
+Examples:
+  browser googo.com    View the Googo homepage
+  browser github.com    View the GitHub homepage
+
+Note: This browser displays simulated website content in a graphical interface.
+`;
+          break;
+        }
         if (args.length === 0) {
-          error = 'browser: missing target domain\nTry: browser googo.com';
+          error = 'browser: missing target domain\nTry: browser --help';
           break;
         }
         const domain = args[0];
@@ -1758,6 +1771,13 @@ Examples:
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Focus input when package installation completes
+  useEffect(() => {
+    if (!installingPackage) {
+      inputRef.current?.focus();
+    }
+  }, [installingPackage]);
 
   return (
     <div className="min-h-screen bg-black text-green-400 font-mono p-4">

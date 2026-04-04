@@ -28,24 +28,36 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [urlInput, setUrlInput] = useState(initialUrl);
   const [currentWebsite, setCurrentWebsite] = useState<Website | null>(null);
-  const [history, setHistory] = useState<string[]>([initialUrl]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const [tabHistories, setTabHistories] = useState<string[][]>([[initialUrl]]);
+  const [tabHistoryIndices, setTabHistoryIndices] = useState<number[]>([0]);
   const [tabs, setTabs] = useState<BrowserTab[]>([{ url: initialUrl, title: 'New Tab' }]);
   const [activeTab, setActiveTab] = useState(0);
   const [windowPosition, setWindowPosition] = useState({ x: 100, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [bookmarks, setBookmarks] = useState<string[]>(() => {
+    const key = `browser-bookmarks-${setupData?.playerName || 'user'}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  });
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [homeUrl, setHomeUrl] = useState(() => {
+    const key = `browser-home-${setupData?.playerName || 'user'}`;
+    return localStorage.getItem(key) || 'http://googo.com';
+  });
   const dragOffsetRef = useRef(dragOffset);
   const contentRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
 
+  // Helpers for current tab's history
+  const currentHistory = tabHistories[activeTab] || [];
+  const currentHistoryIndex = tabHistoryIndices[activeTab] || 0;
+
   // Determine if the current website should be rendered in light mode
   const isLightTheme = currentWebsite?.domain === 'googo.com' || currentWebsite?.domain === 'wikipedia.org';
 
-  // Load bookmarks and history from localStorage
+  // Load bookmarks, history, and home URL from localStorage
   const loadBookmarks = useCallback(() => {
     const key = `browser-bookmarks-${setupData?.playerName || 'user'}`;
     const stored = localStorage.getItem(key);
@@ -60,19 +72,25 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
     setBookmarks(newBookmarks);
   }, [setupData]);
 
+  const saveHomeUrl = useCallback((newHomeUrl: string) => {
+    const key = `browser-home-${setupData?.playerName || 'user'}`;
+    localStorage.setItem(key, newHomeUrl);
+    setHomeUrl(newHomeUrl);
+  }, [setupData]);
+
   const loadHistory = useCallback(() => {
     const key = `browser-history-${setupData?.playerName || 'user'}`;
     const stored = localStorage.getItem(key);
     if (stored) {
-      const parsedHistory = JSON.parse(stored);
-      setHistory(parsedHistory.history || [initialUrl]);
-      setHistoryIndex(parsedHistory.index || 0);
+      const parsed = JSON.parse(stored);
+      setTabHistories(parsed.histories || [[initialUrl]]);
+      setTabHistoryIndices(parsed.indices || [0]);
     }
   }, [setupData, initialUrl]);
 
-  const saveHistory = useCallback((newHistory: string[], newIndex: number) => {
+  const saveHistory = useCallback((newHistories: string[][], newIndices: number[]) => {
     const key = `browser-history-${setupData?.playerName || 'user'}`;
-    localStorage.setItem(key, JSON.stringify({ history: newHistory, index: newIndex }));
+    localStorage.setItem(key, JSON.stringify({ histories: newHistories, indices: newIndices }));
   }, [setupData]);
 
   // Load website content when URL changes
@@ -83,7 +101,6 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBookmarks();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadHistory();
   }, [loadBookmarks, loadHistory]);
 
@@ -126,8 +143,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
       return;
     }
 
-    // Reset search query if not on googo.com
-    if (domain !== 'googo.com') {
+    // Reset search query if not on googo.com or not searching on googo.com
+    if (domain !== 'googo.com' || path !== '/search') {
       setSearchQuery(null);
     }
 
@@ -172,31 +189,41 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
 
   const navigateTo = React.useCallback((url: string) => {
     setCurrentUrl(url);
-    // Add to history if different from current
-    if (history[historyIndex] !== url) {
-      const newHistory = history.slice(0, historyIndex + 1);
+    // Add to current tab's history if different from current
+    if (currentHistory[currentHistoryIndex] !== url) {
+      const newHistory = currentHistory.slice(0, currentHistoryIndex + 1);
       newHistory.push(url);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-      saveHistory(newHistory, newHistory.length - 1);
+      const newHistories = [...tabHistories];
+      newHistories[activeTab] = newHistory;
+      const newIndices = [...tabHistoryIndices];
+      newIndices[activeTab] = newHistory.length - 1;
+      setTabHistories(newHistories);
+      setTabHistoryIndices(newIndices);
+      saveHistory(newHistories, newIndices);
     }
     // Update active tab
     const newTabs = [...tabs];
     newTabs[activeTab] = { ...newTabs[activeTab], url, title: currentWebsite?.title || url };
     setTabs(newTabs);
-  }, [history, historyIndex, tabs, activeTab, currentWebsite, saveHistory]);
+  }, [currentHistory, currentHistoryIndex, tabHistories, tabHistoryIndices, activeTab, tabs, currentWebsite, saveHistory]);
 
   const goBack = () => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setCurrentUrl(history[historyIndex - 1]);
+    if (currentHistoryIndex > 0) {
+      const newIndices = [...tabHistoryIndices];
+      newIndices[activeTab] = currentHistoryIndex - 1;
+      setTabHistoryIndices(newIndices);
+      setCurrentUrl(currentHistory[currentHistoryIndex - 1]);
+      saveHistory(tabHistories, newIndices);
     }
   };
 
   const goForward = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setCurrentUrl(history[historyIndex + 1]);
+    if (currentHistoryIndex < currentHistory.length - 1) {
+      const newIndices = [...tabHistoryIndices];
+      newIndices[activeTab] = currentHistoryIndex + 1;
+      setTabHistoryIndices(newIndices);
+      setCurrentUrl(currentHistory[currentHistoryIndex + 1]);
+      saveHistory(tabHistories, newIndices);
     }
   };
 
@@ -232,13 +259,19 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const addTab = () => {
     const newTab = { url: 'about:blank', title: 'New Tab' };
     setTabs([...tabs, newTab]);
+    setTabHistories([...tabHistories, ['about:blank']]);
+    setTabHistoryIndices([...tabHistoryIndices, 0]);
     setActiveTab(tabs.length);
   };
 
   const closeTab = (index: number) => {
     if (tabs.length > 1) {
       const newTabs = tabs.filter((_, i) => i !== index);
+      const newHistories = tabHistories.filter((_, i) => i !== index);
+      const newIndices = tabHistoryIndices.filter((_, i) => i !== index);
       setTabs(newTabs);
+      setTabHistories(newHistories);
+      setTabHistoryIndices(newIndices);
       if (activeTab >= index && activeTab > 0) {
         setActiveTab(activeTab - 1);
       } else if (activeTab === index) {
@@ -377,20 +410,26 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
         <div className="bg-gray-800 px-4 py-2 flex items-center space-x-2 border-b border-gray-700">
           <button
             onClick={goBack}
-            disabled={historyIndex <= 0}
+            disabled={currentHistoryIndex <= 0}
             className="px-2 py-1 bg-gray-600 text-white rounded disabled:opacity-50 hover:bg-gray-500"
           >
             ←
           </button>
           <button
             onClick={goForward}
-            disabled={historyIndex >= history.length - 1}
+            disabled={currentHistoryIndex >= currentHistory.length - 1}
             className="px-2 py-1 bg-gray-600 text-white rounded disabled:opacity-50 hover:bg-gray-500"
           >
             →
           </button>
           <button onClick={refresh} className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-500">
             ↻
+          </button>
+          <button
+            onClick={() => navigateTo(homeUrl)}
+            className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-500"
+          >
+            🏠
           </button>
           <div className="relative">
             <button
@@ -407,6 +446,12 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
                     className="w-full text-left px-2 py-1 text-white hover:bg-gray-600 rounded text-sm"
                   >
                     Add Bookmark
+                  </button>
+                  <button
+                    onClick={() => { saveHomeUrl(currentUrl); setShowBookmarks(false); }}
+                    className="w-full text-left px-2 py-1 text-white hover:bg-gray-600 rounded text-sm mt-1"
+                  >
+                    Set as Home
                   </button>
                 </div>
                 {bookmarks.length > 0 && (
@@ -445,7 +490,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
             {showHistory && (
               <div className="absolute top-full left-0 mt-1 bg-gray-700 border border-gray-600 rounded shadow-lg z-10 min-w-48">
                 <div className="max-h-48 overflow-y-auto">
-                  {history.slice().reverse().map((url, index) => (
+                  {currentHistory.slice().reverse().map((url, index) => (
                     <button
                       key={index}
                       onClick={() => navigateToHistory(url)}
@@ -480,7 +525,18 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
           {currentWebsite?.domain === 'googo.com' ? (
             searchQuery ? (
               <div className="max-w-4xl mx-auto p-4">
-                <div ref={contentRef} dangerouslySetInnerHTML={{ __html: generateSearchResults(searchQuery, false, mockInternet) }} />
+                <div
+                  ref={contentRef}
+                  dangerouslySetInnerHTML={{ __html: generateSearchResults(searchQuery, false, mockInternet) }}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const link = target.closest('a');
+                    if (link && link.href) {
+                      e.preventDefault();
+                      navigateTo(link.href);
+                    }
+                  }}
+                />
               </div>
             ) : (
               <GoogoSearchPage onSearch={(q, lucky) => {

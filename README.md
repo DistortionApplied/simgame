@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking. I need to fix a bug with apt install that was introduced when I implemented a progress bar to the install process. the cursor doesn't go back to prompt when it's done without the player clicking. the cursor needs to go back to prompt automatically. Look through and find the problem. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -244,11 +244,17 @@ Issues Identified
     - added auto deletion of old save game data.
     - improved apt realism
     - new agent push
-    
     - made a Googo.tsx file for googo's search functions
     - google.com changed to googo.com
     - push for new agent
-    x googo needs to function in the game.
+    - apt install bug addressed, cursor goes back to prompt after install complete
+    - back to googo button from landing page seems to work
+    - browser command added to help command
+    - and --help, and man
+    - Browser back button functions properly
+    - have a home button on the browser that leads to googo, but can be set by player
+    - done for today push
+    - googo needs to function in the game.
         - attempted this but efforts did not work.
         - made a little headway
         x drastic improvement needed
@@ -256,10 +262,12 @@ Issues Identified
     x need to add a bank website
     x gotta get IP addys involved
     x need a whois command
-    x apt install bug, cursor needs to go back to prompt after install complete
     x the browser's window wackiness needs to chill
     x Links on googo need to be worked on
-
+    x up for last command is not working all the time
+    x browser history needs to not be persistant when a save game is deleted.
+    x terminal needs to save it's history better, a lot gets deleted or cleared along the way when   it shouldn't.
+    
     
 
 

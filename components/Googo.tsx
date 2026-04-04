@@ -95,18 +95,13 @@ export function generateSearchResults(query: string, isLucky: boolean, mockInter
   let results = `<html>
 <head><title>Googo Search - ${query}</title></head>
 <body style="font-family: Arial, sans-serif; margin: 20px;">
-<script>
-function navigateTo(url) {
-  window.parent.postMessage({type: 'navigate', url: url}, '*');
-}
-</script>
 <h1>Googo Search Results</h1>
 <p>Search query: <strong>${query}</strong></p>`;
 
   if (matchingWebsites.length > 0) {
     results += `<h2>Websites</h2><ul>`;
     matchingWebsites.slice(0, 10).forEach(w => {
-      results += `<li><a href="#" onclick="navigateTo('http://${w.domain}'); return false;">${w.title || w.domain}</a> - ${w.domain}</li>`;
+      results += `<li><a href="http://${w.domain}">${w.title || w.domain}</a> - ${w.domain}</li>`;
     });
     results += `</ul>`;
   }
@@ -123,6 +118,6 @@ function navigateTo(url) {
     results += `<p>No results found for "${query}".</p>`;
   }
 
-  results += `<p><a href="#" onclick="navigateTo('http://googo.com'); return false;">Back to Googo</a></p></body></html>`;
+  results += `<p><a href="http://googo.com">Back to Googo</a></p></body></html>`;
   return results;
 }

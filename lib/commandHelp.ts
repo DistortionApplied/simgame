@@ -1,7 +1,7 @@
 // lib/commandHelp.ts
 // Contains help texts and synopses for all commands
 
-export function getCommandHelp(command: string): string {
+export function getCommandHelp(command: string, installedPackages: Record<string, any> = {}): string {
   if (command === 'help') {
     const commands = [
       ['help', 'Show this help'],
@@ -14,7 +14,6 @@ export function getCommandHelp(command: string): string {
       ['touch <file>', 'Create empty file'],
       ['rm <file>', 'Remove file'],
       ['cat [file]', 'Display file contents or stdin'],
-      ['nano <file>', 'Edit file with nano text editor'],
       ['adduser <user>', 'Add a user to the system (root only)'],
       ['userdel <user>', 'Delete a user from the system (root only)'],
       ['passwd [user]', 'Change password (root can change any user\'s password)'],
@@ -27,8 +26,6 @@ export function getCommandHelp(command: string): string {
       ['cmd > file', 'Output redirection to file'],
       ['cmd >> file', 'Output append redirection to file'],
       ['ping [opts] <host>', 'Send ICMP echo requests to network host'],
-      ['nmap [opts] <target>', 'Network exploration tool and security scanner'],
-      ['snake', 'Play the classic Snake game'],
       ['ifconfig [iface]', 'Configure network interfaces'],
       ['whoami', 'Show current user'],
       ['id', 'Show user/group IDs'],
@@ -41,6 +38,23 @@ export function getCommandHelp(command: string): string {
       ['clear', 'Clear terminal'],
       ['reboot', 'Restart the system']
     ];
+
+    // Add package-specific commands if installed
+    if (installedPackages['nano']) {
+      commands.push(['nano <file>', 'Edit file with nano text editor']);
+    }
+    if (installedPackages['nmap']) {
+      commands.push(['nmap [opts] <target>', 'Network exploration tool and security scanner']);
+    }
+    if (installedPackages['snake']) {
+      commands.push(['snake', 'Play the classic Snake game']);
+    }
+    if (installedPackages['browser']) {
+      commands.push(['browser <domain>', 'Browse simulated websites']);
+    }
+    if (installedPackages['geemail']) {
+      commands.push(['geemail', 'GeeMail email client']);
+    }
 
     const maxCmdLength = Math.max(...commands.map(([cmd]) => cmd.length));
     return 'Available commands:\n' + commands.map(([cmd, desc]) =>
@@ -783,6 +797,27 @@ EXAMPLES
 
 SEE ALSO
         No related commands in this simulation
+`,
+    browser: `browser: browse simulated websites
+
+Usage: browser [DOMAIN]
+
+Browse simulated websites on the mock internet. If no domain is specified,
+opens the browser interface. Supports basic web browsing functionality.
+
+Arguments:
+  DOMAIN    The domain name to browse (e.g., googo.com, wikipedia.org)
+
+Options:
+  -h, --help    Display this help message.
+
+Examples:
+  browser             Open browser interface
+  browser googo.com   Browse to Googo search engine
+  browser wikipedia.org Browse to Wikipedia
+
+SEE ALSO
+        ping(1), nmap(1)
 `,
     // nmap and apt have their own help in lib files, so not included here
   };
