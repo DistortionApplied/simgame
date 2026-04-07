@@ -209,10 +209,6 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     const trimmedCommand = command.trim();
     if (!trimmedCommand) return;
 
-    // Add command to history
-    setCommandHistory(prev => [...prev, trimmedCommand]);
-    setHistoryIndex(-1);
-
     // Parse redirection operators
     let redirectOutput: string | null = null;
     let redirectInput: string | null = null;
@@ -1553,6 +1549,12 @@ Examples:
 
     // Add all lines at once to ensure correct order
     setLines(prev => [...prev, ...newLines]);
+
+    // Add successful command to history (only if no error occurred)
+    if (!error) {
+      setCommandHistory(prev => [...prev, trimmedCommand]);
+      setHistoryIndex(-1);
+    }
 
     // Save filesystem state after each command
     fs.saveToLocalStorage();

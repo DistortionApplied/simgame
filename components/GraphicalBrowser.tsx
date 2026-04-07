@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MockInternet, Website } from '../lib/internet';
 import { GoogoSearchPage, generateSearchResults } from './Googo';
+import ChasteBank from './ChasteBank';
+
 
 interface GameSetup {
   playerName: string;
@@ -48,7 +50,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   });
   const dragOffsetRef = useRef(dragOffset);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [searchQuery, setSearchQuery] = useState<string | null>(null);
+ const [searchQuery, setSearchQuery] = useState<string | null>(null);
+  const [contentKey, setContentKey] = useState(0);
 
   // Helpers for current tab's history
   const currentHistory = tabHistories[activeTab] || [];
@@ -93,17 +96,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
     localStorage.setItem(key, JSON.stringify({ histories: newHistories, indices: newIndices }));
   }, [setupData]);
 
-  // Load website content when URL changes
-  useEffect(() => {
-    dragOffsetRef.current = dragOffset;
-  }, [dragOffset]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadBookmarks();
-    loadHistory();
-  }, [loadBookmarks, loadHistory]);
-
+  // Load website content when URL changes or refresh is triggered
   useEffect(() => {
     let urlObj: URL;
     try {
@@ -228,8 +221,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   };
 
   const refresh = () => {
-    // Trigger re-load by updating URL (useEffect will handle)
-    setCurrentUrl(currentUrl);
+    // Force re-render of content by changing the key
+    setContentKey(prev => prev + 1);
   };
 
   const addBookmark = () => {
@@ -521,7 +514,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
         </div>
 
         {/* Content area */}
-        <div className={`flex-1 overflow-auto ${isLightTheme ? 'bg-white text-black' : 'bg-gray-900 text-white'}`}>
+        <div key={contentKey} className={`flex-1 overflow-auto ${isLightTheme ? 'bg-white text-black' : 'bg-gray-900 text-white'}`}>
           {currentWebsite?.domain === 'googo.com' ? (
             searchQuery ? (
               <div className="max-w-4xl mx-auto p-4">
@@ -551,6 +544,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
                 }
               }} />
             )
+          ) : currentWebsite?.domain === 'chastebank.com' ? (
+            <ChasteBank setupData={setupData} />
           ) : currentWebsite ? (
             <div className="max-w-4xl mx-auto p-4">
               <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />

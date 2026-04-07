@@ -94,8 +94,8 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '16.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 16.0');
+        if (!parsed.version || parsed.version !== '17.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 17.0');
           return null;
         }version: '15.0' // Increment when templates change
         // Convert Maps back from objects
@@ -175,7 +175,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '16.0' // Increment when templates change
+      version: '17.0' // Increment when templates change
     };
   }
 
@@ -208,6 +208,7 @@ export class MockInternet {
       'facebook.com',
       'twitter.com',
       'geemail.com',
+      'chastebank.com',
       'example.com',
       'test.com',
       'localhost'
@@ -217,12 +218,34 @@ export class MockInternet {
 
     domains.forEach(domain => {
       const ip = this.generateRandomIP();
+      let title = domain.charAt(0).toUpperCase() + domain.slice(1);
+
+      // Give better titles for specific sites
+      const titleMap: Record<string, string> = {
+        'googo.com': 'Googo',
+        'github.com': 'GitHub',
+        'stackoverflow.com': 'Stack Overflow',
+        'wikipedia.org': 'Wikipedia',
+        'reddit.com': 'Reddit',
+        'youtube.com': 'YouTube',
+        'amazon.com': 'Amazon',
+        'netflix.com': 'Netflix',
+        'facebook.com': 'Facebook',
+        'twitter.com': 'Twitter',
+        'geemail.com': 'GeeMail',
+        'chastebank.com': 'Chaste Bank'
+      };
+
+      if (titleMap[domain]) {
+        title = titleMap[domain];
+      }
+
       websites.push({
         domain,
         ip,
         content: this.generateWebsiteContent(domain),
         type: 'static',
-        title: domain.charAt(0).toUpperCase() + domain.slice(1),
+        title,
         lastModified: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
       });
     });
@@ -238,6 +261,21 @@ export class MockInternet {
       'stackoverflow.com': STACKOVERFLOW_HTML,
       'wikipedia.org': WIKIPEDIA_HTML,
       'geemail.com': GEEMAIL_HTML,
+      'chastebank.com': `
+        <html>
+        <head><title>Chaste Bank</title></head>
+        <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; color: #212529;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #007bff; font-size: 48px; margin: 0;">Chaste Bank</h1>
+            <p style="font-size: 18px; color: #6c757d;">Secure Banking in the Digital Age</p>
+          </div>
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 2px solid #007bff; border-radius: 10px; padding: 30px; text-align: center;">
+            <p>Welcome to Chaste Bank! Open an account to track your earnings from gameplay and online purchases.</p>
+            <p>You'll earn money through various game activities.</p>
+          </div>
+        </body>
+        </html>
+      `,
       'default': `
         <html>
         <head><title>${domain}</title></head>
