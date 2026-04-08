@@ -2,6 +2,7 @@ import { GOOGLE_HTML } from './google-template';
 import { GITHUB_HTML } from './github-template';
 import { WIKIPEDIA_HTML } from './wikipedia-template';
 import { GEEMAIL_HTML } from './geemail-template';
+import { SPAMAZON_HTML } from './spamazon-template';
 
 export interface Website {
   domain: string;
@@ -93,8 +94,8 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '17.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 17.0');
+        if (!parsed.version || parsed.version !== '18.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 18.0');
           return null;
         }version: '15.0' // Increment when templates change
         // Convert Maps back from objects
@@ -174,7 +175,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '17.0' // Increment when templates change
+      version: '18.0' // Increment when templates change
     };
   }
 
@@ -201,7 +202,7 @@ export class MockInternet {
       'wikipedia.org',
       'reddit.com',
       'youtube.com',
-      'amazon.com',
+      'spamazon.com',
       'facebook.com',
       'twitter.com',
       'geemail.com',
@@ -224,7 +225,7 @@ export class MockInternet {
         'wikipedia.org': 'Wikipedia',
         'reddit.com': 'Reddit',
         'youtube.com': 'YouTube',
-        'amazon.com': 'Amazon',
+        'spamazon.com': 'Spamazon',
         'facebook.com': 'Facebook',
         'twitter.com': 'Twitter',
         'geemail.com': 'GeeMail',
@@ -255,6 +256,7 @@ export class MockInternet {
       'github.com': GITHUB_HTML,
       'wikipedia.org': WIKIPEDIA_HTML,
       'geemail.com': GEEMAIL_HTML,
+      'spamazon.com': SPAMAZON_HTML,
       'chastebank.com': `
         <html>
         <head><title>Chaste Bank</title></head>

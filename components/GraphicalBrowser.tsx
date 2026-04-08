@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MockInternet, Website } from '../lib/internet';
 import { GoogoSearchPage, generateSearchResults } from './Googo';
 import ChasteBank from './ChasteBank';
+import Spamazon from './Spamazon';
 
 
 interface GameSetup {
@@ -546,6 +547,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
             )
           ) : currentWebsite?.domain === 'chastebank.com' ? (
             <ChasteBank setupData={setupData} />
+          ) : currentWebsite?.domain === 'spamazon.com' ? (
+            <Spamazon setupData={setupData} />
           ) : currentWebsite ? (
             <div className="max-w-4xl mx-auto p-4">
               <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />

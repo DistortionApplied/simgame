@@ -74,11 +74,28 @@ export function generateSearchResults(query: string, isLucky: boolean, mockInter
   const allWebsites = mockInternet.getAllWebsites();
   const allServers = mockInternet.getAllServers();
 
-  // Simple search: match domain or title
-  const matchingWebsites = allWebsites.filter(w =>
-    w.domain.toLowerCase().includes(query.toLowerCase()) ||
-    (w.title && w.title.toLowerCase().includes(query.toLowerCase()))
-  );
+  // Simple search: match domain or title, with special aliases
+  const queryLower = query.toLowerCase();
+  const matchingWebsites = allWebsites.filter(w => {
+    const domainMatch = w.domain.toLowerCase().includes(queryLower);
+    const titleMatch = w.title && w.title.toLowerCase().includes(queryLower);
+
+    // Special aliases for renamed sites
+    const aliases: Record<string, string[]> = {
+      'spamazon.com': ['amazon', 'amazon.com', 'shopping', 'buy', 'store'],
+      'glitchub.com': ['github', 'github.com', 'code', 'programming', 'git'],
+      'slikipedia.org': ['wikipedia', 'wikipedia.org', 'info', 'information', 'wiki'],
+      'readdit.com': ['reddit', 'reddit.com', 'social media', 'social', 'forum'],
+      'viewtube.com': ['youtube', 'youtube.com', 'video', 'videos'],
+      'facespace.com': ['facebook', 'facebook.com', 'social', 'social media'],
+      'skitter.com': ['twitter', 'twitter.com', 'tweet', 'social']
+    };
+
+    const siteAliases = aliases[w.domain] || [];
+    const aliasMatch = siteAliases.some(alias => queryLower.includes(alias));
+
+    return domainMatch || titleMatch || aliasMatch;
+  });
 
   const matchingServers = allServers.filter(s =>
     (s.hostname && s.hostname.toLowerCase().includes(query.toLowerCase())) ||
