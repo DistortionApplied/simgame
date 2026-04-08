@@ -1276,5 +1276,48 @@ NOTES
 
 SEE ALSO
         ping(1), nmap(1)
+`,
+
+  whois: `WHOIS(1)                      User Commands                      WHOIS(1)
+
+NAME
+        whois - client for the whois directory service
+
+SYNOPSIS
+        whois [OPTIONS] domain
+
+DESCRIPTION
+        whois searches for an object in a WHOIS database. WHOIS is a query and
+        response protocol that is widely used for querying databases that store
+        the registered users or assignees of an Internet resource, such as a
+        domain name, an IP address block, or an autonomous system.
+
+        This implementation queries the mock internet WHOIS database for domain
+        registration information in the simulated network environment.
+
+OPTIONS
+        -h, --help
+                 Display help message and exit.
+
+EXAMPLES
+        whois googo.com
+                 Query WHOIS information for googo.com domain.
+
+        whois github.com
+                 Query WHOIS information for github.com domain.
+
+        whois spamazon.com
+                 Query WHOIS information for spamazon.com domain.
+
+EXIT STATUS
+        0      Success
+        1      Domain not found or network error
+
+NOTES
+        This command operates within the simulated internet environment and
+        returns mock WHOIS data for educational purposes.
+
+SEE ALSO
+        ping(1), nmap(1), browser(1)
 `
 };
