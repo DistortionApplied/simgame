@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. I need to finish setting up the websites currently in the game. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. I need to finish setting up the websites currently in the game. First, Let's improve amazon.com. call it "slamazon.com" and change it to match the design of amazon.com, as well as make it ready to be where the player will be able to purchase things. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -76,21 +76,16 @@ Linux terminal simulation game with mock internet functionality inspired by Grey
 
 Improve Browser Realism (Grey Hack Style):
 
-Add link handling in GraphicalBrowser (intercept clicks, navigate within mock internet).
-Implement form submission for interactive websites.
-Add loading animations and progress indicators.
-Enhance HTML rendering for better pixel-perfect layouts (e.g., CSS parsing, responsive design).
-Add simulated network delays for realism.
 Fix Known Issues:
 
-Make Googo links functional (search, navigation).
 Improve existing websites (Wikipedia, GitHub, etc.) with more interactive elements.
-Add bank website to mock internet with basic banking interface.
+
 Enhance Mock Internet:
 
 Add more servers/services for nmap scanning variety.
 Implement server-side logic for dynamic websites (e.g., search results).
 Add firewall/ports logic affecting connectivity.
+
 Testing/Compatibility:
 
 Run bun typecheck and bun lint after changes.
