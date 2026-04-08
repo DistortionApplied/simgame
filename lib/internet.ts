@@ -1,6 +1,5 @@
 import { GOOGLE_HTML } from './google-template';
 import { GITHUB_HTML } from './github-template';
-import { STACKOVERFLOW_HTML } from './stackoverflow-template';
 import { WIKIPEDIA_HTML } from './wikipedia-template';
 import { GEEMAIL_HTML } from './geemail-template';
 
@@ -199,12 +198,10 @@ export class MockInternet {
    const domains = [
       'googo.com',
       'github.com',
-      'stackoverflow.com',
       'wikipedia.org',
       'reddit.com',
       'youtube.com',
       'amazon.com',
-      'netflix.com',
       'facebook.com',
       'twitter.com',
       'geemail.com',
@@ -224,12 +221,10 @@ export class MockInternet {
       const titleMap: Record<string, string> = {
         'googo.com': 'Googo',
         'github.com': 'GitHub',
-        'stackoverflow.com': 'Stack Overflow',
         'wikipedia.org': 'Wikipedia',
         'reddit.com': 'Reddit',
         'youtube.com': 'YouTube',
         'amazon.com': 'Amazon',
-        'netflix.com': 'Netflix',
         'facebook.com': 'Facebook',
         'twitter.com': 'Twitter',
         'geemail.com': 'GeeMail',
@@ -258,7 +253,6 @@ export class MockInternet {
     const templates = {
       'googo.com': GOOGLE_HTML,
       'github.com': GITHUB_HTML,
-      'stackoverflow.com': STACKOVERFLOW_HTML,
       'wikipedia.org': WIKIPEDIA_HTML,
       'geemail.com': GEEMAIL_HTML,
       'chastebank.com': `
@@ -392,6 +386,39 @@ export class MockInternet {
 
   getDNSEntries(): Array<[string, string]> {
     return Array.from(this.data.dns.entries());
+  }
+
+  whois(domain: string): string | null {
+    const website = this.getWebsiteByDomain(domain);
+    if (!website) {
+      return null;
+    }
+
+    // Use actual website data for consistency
+    const createdDate = new Date(website.lastModified || Date.now() - 365 * 24 * 60 * 60 * 1000);
+    const updatedDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+    const expiryDate = new Date(createdDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year expiry
+
+    // Simple registrar assignment based on domain for consistency
+    const registrarMap: Record<string, string> = {
+      'googo.com': 'GoDaddy LLC',
+      'github.com': 'GitHub Inc.',
+      'wikipedia.org': 'Wikimedia Foundation',
+      'default': 'Network Solutions LLC'
+    };
+    const registrar = registrarMap[domain] || registrarMap.default;
+
+    return `Domain Name: ${website.domain}
+IP Address: ${website.ip}
+Registrar: ${registrar}
+Creation Date: ${createdDate.toISOString().split('T')[0]}
+Updated Date: ${updatedDate.toISOString().split('T')[0]}
+Expiry Date: ${expiryDate.toISOString().split('T')[0]}
+Name Server: ns1.${domain.split('.').slice(-2).join('.')}
+Name Server: ns2.${domain.split('.').slice(-2).join('.')}
+Status: Active
+
+>>> Last update of WHOIS database: ${new Date().toISOString().split('T')[0]} <<<`;
   }
 
   // Email methods

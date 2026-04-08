@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. up for last command doesn't work after the browser is closed and the player returns to the terminal. It should. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. It should. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -51,7 +51,7 @@ https://github.com/DistortionApplied/simgame.git
 ## Project Overview
 Linux terminal simulation game with mock internet functionality inspired by Grey Hack.
 
-## Recent Changes
+
 - **2026-04-02**: Created basic mock internet data structures and DNS system in `lib/internet.ts`
   - Added MockInternet class with procedural generation
   - Implemented Website, Server, Service interfaces
@@ -83,7 +83,6 @@ Enhance HTML rendering for better pixel-perfect layouts (e.g., CSS parsing, resp
 Add simulated network delays for realism.
 Fix Known Issues:
 
-Add scroll bar to GeeMail compose screen.
 Make Googo links functional (search, navigation).
 Improve existing websites (Wikipedia, GitHub, etc.) with more interactive elements.
 Add bank website to mock internet with basic banking interface.
@@ -256,16 +255,32 @@ Issues Identified
     - done for today push
     - got refresh button working
     - added a bank website
-    - googo needs to function in the game.
+    - up for last command should be working all the time.
+    - got a whois command
+    - new bot push
+    - merging to main
+    x man page for whois
+    x customize sites on mockinternet
+        - removed websites we won't use.
+        x mockweb design
+            x github.com - "glitchub.com"
+                x comes up when searched for "code" "programs" "programming" "github.com" "github"
+            x wikipedia.org - "slikipedia.org"
+                x comes up when searched for "info" "information" "wikipedia.com" "wikipedia"
+            x reddit.com - "readdit.com"
+                x comes up when searched for "reddit.com" "social media" "reddit"
+            x youtube.com - "viewtube.com"
+            x amazon.com - "spamazon.com"
+            x facebook.com - "facespace.com"
+            x twitter.com - "skitter.com"
+    x googo needs to function in the game.
         - attempted this but efforts did not work.
         - made a little headway
         x improvement needed
     x need to work on existing websites 
     x gotta get IP addys involved
-    x need a whois command
     x the browser's window wackiness needs to chill
     x Links on googo need to be worked on
-    x up for last command is not working all the time
     x browser history needs to not be persistant when a save game is deleted.
     x terminal needs to save it's history better, a lot gets deleted or cleared along the way when   it shouldn't.
     

@@ -26,6 +26,7 @@ export function getCommandHelp(command: string, installedPackages: Record<string
       ['cmd > file', 'Output redirection to file'],
       ['cmd >> file', 'Output append redirection to file'],
       ['ping [opts] <host>', 'Send ICMP echo requests to network host'],
+      ['whois <domain>', 'Query WHOIS database for domain information'],
       ['ifconfig [iface]', 'Configure network interfaces'],
       ['whoami', 'Show current user'],
       ['id', 'Show user/group IDs'],
@@ -455,6 +456,31 @@ EXAMPLES
 
 SEE ALSO
         traceroute(1), nslookup(1)
+`,
+    whois: `whois - query WHOIS database for domain information
+
+SYNOPSIS
+        whois [OPTIONS] domain
+
+DESCRIPTION
+        whois searches for an object in a WHOIS database. WHOIS is a query and
+        response protocol that is widely used for querying databases that store
+        the registered users or assignees of an Internet resource, such as a
+        domain name, an IP address block, or an autonomous system.
+
+OPTIONS
+        -h, --help
+                Display this help message.
+
+EXAMPLES
+        whois googo.com
+                Query WHOIS information for googo.com
+
+        whois github.com
+                Query WHOIS information for github.com
+
+SEE ALSO
+        ping(1), nslookup(1)
 `,
     ifconfig: `ifconfig - configure a network interface
 

@@ -33,7 +33,7 @@ interface TerminalProps {
 
 export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenBrowser, onOpenGeeMail, onReboot }: TerminalProps) {
   // Game-specific commands that are always available (don't require binaries)
-  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser', 'geemail'];
+  const builtinCommands = ['cd', 'pwd', 'help', 'sudo', 'su', 'reboot', 'clear', 'debug', 'save', 'reset', 'adduser', 'userdel', 'passwd', 'ping', 'ifconfig', 'browser', 'geemail', 'whois'];
 
   const [lines, setLines] = useState<TerminalLine[]>([
     { type: 'output', content: `Welcome to Linux Sim Game, ${setupData?.playerName || 'User'}!` },
@@ -41,8 +41,18 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     { type: 'output', content: 'Type "help" for available commands or "cat README.txt" for more information.' },
   ]);
   const [currentInput, setCurrentInput] = useState('');
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [commandHistory, setCommandHistory] = useState<string[]>(() => {
+    const key = `terminal-history-${setupData?.playerName || 'user'}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  });
   const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Helper function to save command history to localStorage
+  const saveCommandHistory = (history: string[]) => {
+    const key = `terminal-history-${setupData?.playerName || 'user'}`;
+    localStorage.setItem(key, JSON.stringify(history));
+  };
   const [fs] = useState(() => {
     const filesystem = new FakeFileSystem(setupData);
     if (setupData) {
@@ -829,6 +839,34 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
         break;
       }
 
+      case 'whois': {
+        if (args.includes('--help') || args.includes('-h')) {
+          output = getCommandHelp('whois');
+          break;
+        }
+
+        if (args.length === 0) {
+          error = 'whois: missing domain name\nUsage: whois <domain>';
+          break;
+        }
+
+        const domain = args[0].toLowerCase();
+
+        if (!mockInternet) {
+          error = 'whois: Network not available';
+          break;
+        }
+
+        const whoisData = mockInternet.whois(domain);
+        if (!whoisData) {
+          error = `whois: ${domain}: No match for domain "${domain}"`;
+          break;
+        }
+
+        output = whoisData;
+        break;
+      }
+
       case 'ifconfig': {
         if (args.includes('-h') || args.includes('--help')) {
           output = getCommandHelp('ifconfig');
@@ -1552,7 +1590,9 @@ Examples:
 
     // Add successful command to history (only if no error occurred)
     if (!error) {
-      setCommandHistory(prev => [...prev, trimmedCommand]);
+      const newHistory = [...commandHistory, trimmedCommand];
+      setCommandHistory(newHistory);
+      saveCommandHistory(newHistory);
       setHistoryIndex(-1);
     }
 
