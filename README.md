@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. It should. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below.  We will be working from the "internet_attempt" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the program and the state of development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. I need to finish setting up the websites currently in the game. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -259,6 +259,7 @@ Issues Identified
     - got a whois command
     - new bot push
     - merging to main
+    - browser history behavior improved
     x man page for whois
     x customize sites on mockinternet
         - removed websites we won't use.
@@ -281,7 +282,6 @@ Issues Identified
     x gotta get IP addys involved
     x the browser's window wackiness needs to chill
     x Links on googo need to be worked on
-    x browser history needs to not be persistant when a save game is deleted.
     x terminal needs to save it's history better, a lot gets deleted or cleared along the way when   it shouldn't.
     
     
