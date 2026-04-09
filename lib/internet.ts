@@ -1,4 +1,4 @@
-import { GITHUB_HTML } from './github-template';
+import { GLITCHUB_HTML } from './glitchub-template';
 import { WIKIPEDIA_HTML } from './wikipedia-template';
 
 export interface Website {
@@ -195,7 +195,7 @@ export class MockInternet {
   private generateWebsites(): Website[] {
    const domains = [
       'googo.com',
-      'github.com',
+      'glitchub.com',
       'wikipedia.org',
       'reddit.com',
       'youtube.com',
@@ -218,11 +218,11 @@ export class MockInternet {
       // Give better titles for specific sites
       const titleMap: Record<string, string> = {
         'googo.com': 'Googo',
-        'github.com': 'GitHub',
+        'glitchub.com': 'GlitcHub',
         'wikipedia.org': 'Wikipedia',
         'reddit.com': 'Reddit',
         'youtube.com': 'YouTube',
-        'spamazon.com': 'Spamazon',
+        'amazon.com': 'Amazon',
         'facebook.com': 'Facebook',
         'twitter.com': 'Twitter',
         'geemail.com': 'GeeMail',
@@ -249,7 +249,7 @@ export class MockInternet {
  private generateWebsiteContent(domain: string): string {
     // Generate simple HTML-like content for websites
     const templates = {
-      'github.com': GITHUB_HTML,
+      'glitchub.com': GLITCHUB_HTML,
       'wikipedia.org': WIKIPEDIA_HTML,
       'default': `
         <html>
@@ -383,7 +383,7 @@ export class MockInternet {
     // Simple registrar assignment based on domain for consistency
     const registrarMap: Record<string, string> = {
       'googo.com': 'GoDaddy LLC',
-      'github.com': 'GitHub Inc.',
+      'glitchub.com': 'GlitcHub Inc.',
       'wikipedia.org': 'Wikimedia Foundation',
       'default': 'Network Solutions LLC'
     };

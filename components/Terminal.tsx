@@ -974,7 +974,7 @@ Usage: browser <domain>
 
 Examples:
   browser googo.com    View the Googo homepage
-  browser github.com    View the GitHub homepage
+  browser glitchub.com    View the GlitChub homepage
 
 Note: This browser displays simulated website content in a graphical interface.
 `;

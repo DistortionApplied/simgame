@@ -262,6 +262,7 @@ Issues Identified
         x mockweb design
             x need to add all the googo tags that could be searched for.
             x github.com - "glitchub.com"
+                X BUGGED!!! ><
                 x comes up when searched for "code" "programs" "programming" "github.com" "github"
             x wikipedia.org - "slikipedia.org"
                 x comes up when searched for "info" "information" "wikipedia.com" "wikipedia"

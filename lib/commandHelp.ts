@@ -476,8 +476,8 @@ EXAMPLES
         whois googo.com
                 Query WHOIS information for googo.com
 
-        whois github.com
-                Query WHOIS information for github.com
+        whois glitchub.com
+                Query WHOIS information for glitchub.com
 
 SEE ALSO
         ping(1), nslookup(1)
@@ -840,7 +840,7 @@ Options:
 Examples:
   browser             Open browser interface
   browser googo.com   Browse to Googo search engine
-  browser wikipedia.org Browse to Wikipedia
+  browser glitchub.com   Browse to GlitChub
 
 SEE ALSO
         ping(1), nmap(1)
