@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer.Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. I need to finish setting up the websites currently in the game. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer.Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. I need to finish setting up the websites currently in the game. let's start with (---------).Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -260,6 +260,9 @@ Issues Identified
     - googo needs to function in the game.
     - IP addys seemingly involved
     - save changes push
+    - Rick Roll activated
+    - continued mockweb design,s and improvements.
+    - push to save changes
     x customize sites on mockinternet
         - removed websites we won't use.
         x mockweb design
@@ -271,7 +274,8 @@ Issues Identified
                 x comes up when searched for "info" "information" "wikipedia.com" "wikipedia"
             x reddit.com - "readdit.com"
                 x comes up when searched for "reddit.com" "social media" "reddit"
-            x youtube.com - "viewtube.com"
+            - youtube.com - "viewtube.com"
+                - never give up. never let down.
             - amazon.com - "spamazon.com"
                 - ready for items
             x facebook.com - "facespace.com"

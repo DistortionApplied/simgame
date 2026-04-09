@@ -86,7 +86,7 @@ export function generateSearchResults(query: string, isLucky: boolean, mockInter
       'glitchub.com': ['github', 'github.com', 'code', 'programming', 'git'],
       'wikipedia.org': ['wikipedia', 'wikipedia.org', 'info', 'information', 'wiki'],
       'reddit.com': ['reddit', 'reddit.com', 'social media', 'social', 'forum'],
-      'youtube.com': ['youtube', 'youtube.com', 'video', 'videos'],
+      'viewtube.com': ['viewtube', 'viewtube.com', 'video', 'videos', 'youtube', 'youtube.com'],
       'facebook.com': ['facebook', 'facebook.com', 'social', 'social media'],
       'twitter.com': ['twitter', 'twitter.com', 'tweet', 'social']
     };

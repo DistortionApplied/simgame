@@ -90,10 +90,10 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
          // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '19.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 19.0');
+        if (!parsed.version || parsed.version !== '20.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 20.0');
           return null;
-        }version: '16.0' // Increment when templates change
+        }
         // Convert Maps back from objects
         parsed.dns = new Map(Object.entries(parsed.dns || {}));
         parsed.servers.forEach((server: any) => {
@@ -171,7 +171,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '19.0' // Increment when templates change
+      version: '20.0' // Increment when templates change
     };
   }
 
@@ -197,7 +197,7 @@ export class MockInternet {
       'glitchub.com',
       'wikipedia.org',
       'reddit.com',
-      'youtube.com',
+      'viewtube.com',
       'spamazon.com',
       'facebook.com',
       'twitter.com',
@@ -220,7 +220,7 @@ export class MockInternet {
         'glitchub.com': 'GlitcHub',
         'wikipedia.org': 'Wikipedia',
         'reddit.com': 'Reddit',
-        'youtube.com': 'YouTube',
+        'viewtube.com': 'ViewTube',
         'amazon.com': 'Amazon',
         'facebook.com': 'Facebook',
         'twitter.com': 'Twitter',
@@ -383,6 +383,7 @@ export class MockInternet {
       'googo.com': 'GoDaddy LLC',
       'glitchub.com': 'GlitcHub Inc.',
       'wikipedia.org': 'Wikimedia Foundation',
+      'viewtube.com': 'ViewTube Media LLC',
       'default': 'Network Solutions LLC'
     };
     const registrar = registrarMap[domain] || registrarMap.default;

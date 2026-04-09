@@ -6,6 +6,7 @@ import { GoogoSearchPage, generateSearchResults } from './Googo';
 import ChasteBank from './ChasteBank';
 import Spamazon from './Spamazon';
 import Glitchub from './Glitchub';
+import ViewTube from './ViewTube';
 
 
 interface GameSetup {
@@ -552,6 +553,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
             <Spamazon setupData={setupData} />
           ) : currentWebsite?.domain === 'glitchub.com' ? (
             <Glitchub setupData={setupData} />
+          ) : currentWebsite?.domain === 'viewtube.com' ? (
+            <ViewTube setupData={setupData} />
           ) : currentWebsite ? (
             <div className="max-w-4xl mx-auto p-4">
               <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />
