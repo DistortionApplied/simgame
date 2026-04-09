@@ -1,4 +1,3 @@
-import { GLITCHUB_HTML } from './glitchub-template';
 import { WIKIPEDIA_HTML } from './wikipedia-template';
 
 export interface Website {
@@ -90,11 +89,11 @@ export class MockInternet {
       const stored = localStorage.getItem(this.getStorageKey());
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '18.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 18.0');
+         // Check version - regenerate if outdated
+        if (!parsed.version || parsed.version !== '19.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 19.0');
           return null;
-        }version: '15.0' // Increment when templates change
+        }version: '16.0' // Increment when templates change
         // Convert Maps back from objects
         parsed.dns = new Map(Object.entries(parsed.dns || {}));
         parsed.servers.forEach((server: any) => {
@@ -172,7 +171,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '18.0' // Increment when templates change
+      version: '19.0' // Increment when templates change
     };
   }
 
@@ -249,7 +248,6 @@ export class MockInternet {
  private generateWebsiteContent(domain: string): string {
     // Generate simple HTML-like content for websites
     const templates = {
-      'glitchub.com': GLITCHUB_HTML,
       'wikipedia.org': WIKIPEDIA_HTML,
       'default': `
         <html>
