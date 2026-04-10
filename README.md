@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. thoroughly review the program for bugs, errors, glitches, memory leaks, or anything like that. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. Let's start with (-------)Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -307,7 +307,7 @@ Issues Identified
     - IP addys seemingly involved
     - save changes push
     - Rick Roll activated
-    - continued mockweb design,s and improvements.
+    - continued mockweb designs and improvements.
     - push to save changes
     - bug fixes
         - have, apparently, taken care of Immediate Fixes (High Priority)
@@ -316,6 +316,7 @@ Issues Identified
             - Consolidate localStorage Logic: Create utility functions for key generation and data management
     - seemingly unnecessary new agent push to save bug fixes.
     - fixed the banking information storage
+    - push to save changes
     x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.

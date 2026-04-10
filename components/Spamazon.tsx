@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { bankUtils } from './ChasteBank';
 import { MockInternet } from '../lib/internet';
 
@@ -37,6 +37,7 @@ const products: Product[] = [
 export default function Spamazon({ playerName, mockInternet }: SpamazonProps) {
   const [showCart, setShowCart] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>(() => {
     const storedCart = localStorage.getItem(`spamazon-cart-${playerName}`);
@@ -47,6 +48,15 @@ export default function Spamazon({ playerName, mockInternet }: SpamazonProps) {
     localStorage.setItem(`spamazon-cart-${playerName}`, JSON.stringify(newCart));
     setCart(newCart);
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.product.id === product.id);
@@ -87,15 +97,21 @@ export default function Spamazon({ playerName, mockInternet }: SpamazonProps) {
   const checkout = () => {
     const total = getTotal();
     const balance = bankUtils.getBalance(mockInternet);
+
+    // Clear any existing timeout
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+    }
+
     if (balance >= total) {
       bankUtils.spendMoney(mockInternet, total, `Purchase from Spamazon - ${cart.length} items`);
       setCart([]);
       localStorage.removeItem(`spamazon-cart-${playerName}`);
       setPurchaseMessage(`Purchase successful! $${total.toFixed(2)} deducted from your account.`);
-      setTimeout(() => setPurchaseMessage(null), 5000);
+      messageTimeoutRef.current = setTimeout(() => setPurchaseMessage(null), 5000);
     } else {
       setPurchaseMessage('Insufficient funds. Please check your bank balance.');
-      setTimeout(() => setPurchaseMessage(null), 5000);
+      messageTimeoutRef.current = setTimeout(() => setPurchaseMessage(null), 5000);
     }
   };
 

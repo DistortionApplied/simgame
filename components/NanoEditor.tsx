@@ -18,6 +18,16 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
   const [currentLine, setCurrentLine] = useState(1);
   const [currentCol, setCurrentCol] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -70,19 +80,25 @@ export default function NanoEditor({ filePath, initialContent, onSave, onExit }:
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMessage('');
+
+    // Clear any existing timeout
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+    }
+
     try {
       const error = await onSave(content);
       if (error === null) {
         setHasUnsavedChanges(false);
         setSaveMessage('File saved successfully');
-        setTimeout(() => setSaveMessage(''), 2000);
+        messageTimeoutRef.current = setTimeout(() => setSaveMessage(''), 2000);
       } else {
         setSaveMessage(error);
-        setTimeout(() => setSaveMessage(''), 3000);
+        messageTimeoutRef.current = setTimeout(() => setSaveMessage(''), 3000);
       }
     } catch (error) {
       setSaveMessage('Error saving file');
-      setTimeout(() => setSaveMessage(''), 3000);
+      messageTimeoutRef.current = setTimeout(() => setSaveMessage(''), 3000);
     } finally {
       setIsSaving(false);
       setShowSavePrompt(false);

@@ -58,8 +58,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const [contentKey, setContentKey] = useState(0);
 
   // Helpers for current tab's history
-  const currentHistory = tabHistories[activeTab] || [];
-  const currentHistoryIndex = tabHistoryIndices[activeTab] || 0;
+  const currentHistory = React.useMemo(() => tabHistories[activeTab] || [], [tabHistories, activeTab]);
+  const currentHistoryIndex = React.useMemo(() => tabHistoryIndices[activeTab] || 0, [tabHistoryIndices, activeTab]);
 
   // Determine if the current website should be rendered in light mode
   const isLightTheme = currentWebsite?.domain === 'googo.com' || currentWebsite?.domain === 'slickipedia.org';
