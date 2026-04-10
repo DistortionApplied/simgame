@@ -1,4 +1,4 @@
-import { WIKIPEDIA_HTML } from './wikipedia-template';
+import { SLICKIPEDIA_HTML } from './slickipedia-template';
 
 export interface Website {
   domain: string;
@@ -57,12 +57,28 @@ export interface Server {
   services?: string[];
 }
 
+export interface BankAccount {
+  accountNumber: string;
+  balance: number;
+  transactions: BankTransaction[];
+  createdAt: string;
+}
+
+export interface BankTransaction {
+  id: string;
+  type: 'deposit' | 'withdrawal' | 'transfer';
+  amount: number;
+  description: string;
+  timestamp: string;
+}
+
 export interface MockInternetData {
   websites: Website[];
   servers: Server[];
   dns: Map<string, string>;
   emails: Email[];
   emailAccounts: EmailAccount[];
+  bankAccount?: BankAccount;
   websiteVisits: Set<string>;
   playerIP: string;
   gatewayIP: string;
@@ -90,8 +106,8 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
          // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '20.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 20.0');
+        if (!parsed.version || parsed.version !== '21.0') {
+          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 21.0');
           return null;
         }
         // Convert Maps back from objects
@@ -110,6 +126,7 @@ export class MockInternet {
           attachments: email.attachments ?? []
         }));
         parsed.emailAccounts = parsed.emailAccounts || [];
+        parsed.bankAccount = parsed.bankAccount || undefined;
         parsed.websiteVisits = new Set(parsed.websiteVisits || []);
         return parsed;
       }
@@ -167,11 +184,12 @@ export class MockInternet {
       dns,
       emails: [],
       emailAccounts: [],
+      bankAccount: undefined,
       websiteVisits: new Set(),
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '20.0' // Increment when templates change
+      version: '21.0' // Increment when templates change
     };
   }
 
@@ -195,12 +213,12 @@ export class MockInternet {
    const domains = [
       'googo.com',
       'glitchub.com',
-      'wikipedia.org',
-      'reddit.com',
+      'slickipedia.org',
+      'readdit.com',
       'viewtube.com',
       'spamazon.com',
-      'facebook.com',
-      'twitter.com',
+      'facespace.com',
+      'skitter.com',
       'geemail.com',
       'chastebank.com',
       'example.com',
@@ -217,13 +235,13 @@ export class MockInternet {
       // Give better titles for specific sites
       const titleMap: Record<string, string> = {
         'googo.com': 'Googo',
-        'glitchub.com': 'GlitcHub',
-        'wikipedia.org': 'Wikipedia',
-        'reddit.com': 'Reddit',
+        'glitchub.com': 'GlitChub',
+        'slickipedia.org': 'Slickipedia',
+        'readdit.com': 'Readdit',
         'viewtube.com': 'ViewTube',
-        'amazon.com': 'Amazon',
-        'facebook.com': 'Facebook',
-        'twitter.com': 'Twitter',
+        'spamazon.com': 'Spamazon',
+        'facespace.com': 'FaceSpace',
+        'skitter.com': 'Skitter',
         'geemail.com': 'GeeMail',
         'chastebank.com': 'Chaste Bank'
       };
@@ -248,7 +266,7 @@ export class MockInternet {
  private generateWebsiteContent(domain: string): string {
     // Generate simple HTML-like content for websites
     const templates = {
-      'wikipedia.org': WIKIPEDIA_HTML,
+      'slickipedia.org': SLICKIPEDIA_HTML,
       'default': `
         <html>
         <head><title>${domain}</title></head>
@@ -381,9 +399,13 @@ export class MockInternet {
     // Simple registrar assignment based on domain for consistency
     const registrarMap: Record<string, string> = {
       'googo.com': 'GoDaddy LLC',
-      'glitchub.com': 'GlitcHub Inc.',
-      'wikipedia.org': 'Wikimedia Foundation',
-      'viewtube.com': 'ViewTube Media LLC',
+      'glitchub.com': 'GlitChub Inc.',
+      'slickipedia.org': 'Slickipedia Foundation',
+      'readdit.com': 'Readdit Corp.',
+      'viewtube.com': 'ViewTube LLC',
+      'spamazon.com': 'Spamazon Inc.',
+      'facespace.com': 'FaceSpace Ltd.',
+      'skitter.com': 'Skitter Media',
       'default': 'Network Solutions LLC'
     };
     const registrar = registrarMap[domain] || registrarMap.default;
@@ -549,5 +571,73 @@ Status: Active
              email.subject.toLowerCase().includes(lowerQuery) ||
              email.body.toLowerCase().includes(lowerQuery);
     });
+  }
+
+  // Banking methods
+  getBankAccount(): BankAccount | null {
+    return this.data.bankAccount || null;
+  }
+
+  createBankAccount(): BankAccount {
+    if (this.data.bankAccount) {
+      return this.data.bankAccount;
+    }
+
+    const newAccount: BankAccount = {
+      accountNumber: this.generateAccountNumber(),
+      balance: 420, // Starting balance
+      transactions: [{
+        id: this.generateTransactionId(),
+        type: 'deposit',
+        amount: 420,
+        description: 'Welcome bonus - Account opening',
+        timestamp: new Date().toISOString()
+      }],
+      createdAt: new Date().toISOString()
+    };
+
+    this.data.bankAccount = newAccount;
+    this.saveToLocalStorage();
+    return newAccount;
+  }
+
+  addBankTransaction(type: 'deposit' | 'withdrawal' | 'transfer', amount: number, description: string): boolean {
+    if (!this.data.bankAccount) {
+      this.createBankAccount();
+    }
+
+    const account = this.data.bankAccount!;
+    const transaction: BankTransaction = {
+      id: this.generateTransactionId(),
+      type,
+      amount,
+      description,
+      timestamp: new Date().toISOString()
+    };
+
+    const newBalance = type === 'deposit' ? account.balance + amount :
+                      type === 'withdrawal' ? account.balance - amount :
+                      account.balance - amount; // transfer out
+
+    if (newBalance < 0 && type === 'withdrawal') {
+      return false; // Insufficient funds
+    }
+
+    account.balance = newBalance;
+    account.transactions = [transaction, ...account.transactions];
+    this.saveToLocalStorage();
+    return true;
+  }
+
+  getBankBalance(): number {
+    return this.data.bankAccount?.balance || 0;
+  }
+
+  private generateAccountNumber(): string {
+    return 'CB' + Math.random().toString().substr(2, 10);
+  }
+
+  private generateTransactionId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 }

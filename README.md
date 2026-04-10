@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. The banking information is not storing properly. every user will need to have a separate bank account they will need to create. I just created a new user and the banking info was old. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. thoroughly review the program for bugs, errors, glitches, memory leaks, or anything like that. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -100,6 +100,50 @@ Interactive Elements: Make buttons, links, and forms feel responsive
 Loading States: Add simulated loading animations and progress indicators
 
 ---DO NOT DO THESE STEPS YET---
+
+
+Website Completion (Medium Priority)
+Enhance Googo:
+
+Make search results clickable and functional
+Add "I'm Feeling Lucky" functionality
+Implement proper URL navigation
+Complete Spamazon:
+
+Add product catalog with search/filtering
+Implement shopping cart functionality
+Add checkout process
+Develop ViewTube:
+
+Add video content simulation
+Implement video player interface
+Add search and categories
+
+Add More Interactive Sites:
+
+Reddit clone (Readdit) with posts/comments
+Twitter clone (Skitter) with timeline
+Facebook clone (Facespace) with social features
+Mock Internet Enhancements (Medium Priority)
+Increase Variety:
+
+Generate more websites (50-100 total)
+Add more server types with varied services
+Implement realistic IP allocation
+Add Dynamic Content:
+
+Server-side logic for search results
+User-specific content (personalized pages)
+Time-based content changes
+Firewall/Port Logic:
+
+Implement proper port scanning restrictions
+Add firewall rules affecting connectivity
+Make services require authentication
+Performance Optimizations (Low Priority)
+Memoization: Add React.memo and useMemo where appropriate
+Code Splitting: Lazy load website components
+Bundle Optimization: Reduce initial bundle size
 
 
 
@@ -271,7 +315,7 @@ Issues Identified
             - Add Cleanup for Timers: Implement proper cleanup for setTimeout/setInterval in Terminal component
             - Consolidate localStorage Logic: Create utility functions for key generation and data management
     - seemingly unnecessary new agent push to save bug fixes.
-    x fix the banking information storage
+    - fixed the banking information storage
     x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.
@@ -280,7 +324,8 @@ Issues Identified
             - github.com - "glitchub.com"
                 - fixed bug
                 x comes up when searched for "code" "programs" "programming" "github.com" "github"
-            x wikipedia.org - "slikipedia.org"
+            - wikipedia.org - "slikipedia.org"
+                x content generation need a drastic upgrade
                 x comes up when searched for "info" "information" "wikipedia.com" "wikipedia"
             x reddit.com - "readdit.com"
                 x comes up when searched for "reddit.com" "social media" "reddit"

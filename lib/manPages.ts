@@ -1303,8 +1303,8 @@ EXAMPLES
         whois googo.com
                  Query WHOIS information for googo.com domain.
 
-        whois github.com
-                 Query WHOIS information for github.com domain.
+        whois glitchub.com
+                 Query WHOIS information for glitchub.com domain.
 
         whois spamazon.com
                  Query WHOIS information for spamazon.com domain.

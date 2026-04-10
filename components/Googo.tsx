@@ -84,11 +84,11 @@ export function generateSearchResults(query: string, isLucky: boolean, mockInter
     const aliases: Record<string, string[]> = {
       'spamazon.com': ['amazon', 'amazon.com', 'shopping', 'buy', 'store'],
       'glitchub.com': ['github', 'github.com', 'code', 'programming', 'git'],
-      'wikipedia.org': ['wikipedia', 'wikipedia.org', 'info', 'information', 'wiki'],
-      'reddit.com': ['reddit', 'reddit.com', 'social media', 'social', 'forum'],
+      'slickipedia.org': ['slickipedia', 'slickipedia.org', 'info', 'information', 'wiki'],
+      'readdit.com': ['reddit', 'reddit.com', 'social media', 'social', 'forum'],
       'viewtube.com': ['viewtube', 'viewtube.com', 'video', 'videos', 'youtube', 'youtube.com'],
-      'facebook.com': ['facebook', 'facebook.com', 'social', 'social media'],
-      'twitter.com': ['twitter', 'twitter.com', 'tweet', 'social']
+      'facespace.com': ['facebook', 'facebook.com', 'social', 'social media'],
+      'skitter.com': ['twitter', 'twitter.com', 'tweet', 'social']
     };
 
     const siteAliases = aliases[w.domain] || [];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getBankAccountKey, getFromStorage, setInStorage } from '../lib/storage';
+import { MockInternet, BankAccount, BankTransaction } from '../lib/internet';
 
 interface GameSetup {
   playerName: string;
@@ -9,171 +9,66 @@ interface GameSetup {
   createdAt: string;
 }
 
-interface BankAccount {
-  accountNumber: string;
-  balance: number;
-  transactions: Transaction[];
-  createdAt: string;
-}
-
-interface Transaction {
-  id: string;
-  type: 'deposit' | 'withdrawal' | 'transfer';
-  amount: number;
-  description: string;
-  timestamp: string;
-}
-
 interface ChasteBankProps {
   setupData: GameSetup | null;
+  mockInternet: MockInternet;
 }
 
 // Utility functions for other game systems to manage player money
 export const bankUtils = {
-  addMoney: (playerName: string, amount: number, description: string) => {
+  addMoney: (mockInternet: MockInternet, amount: number, description: string) => {
     try {
-      const storageKey = `bank-account-${playerName}`;
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const account = JSON.parse(stored);
-        const transactionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const transaction = {
-          id: transactionId,
-          type: 'deposit',
-          amount,
-          description,
-          timestamp: new Date().toISOString()
-        };
-        account.balance += amount;
-        account.transactions = [transaction, ...account.transactions];
-        localStorage.setItem(storageKey, JSON.stringify(account));
-        return true;
-      }
+      return mockInternet.addBankTransaction('deposit', amount, description);
     } catch (error) {
       console.error('Failed to add money to bank account:', error);
+      return false;
     }
-    return false;
   },
 
-  spendMoney: (playerName: string, amount: number, description: string) => {
+  spendMoney: (mockInternet: MockInternet, amount: number, description: string) => {
     try {
-      const storageKey = `bank-account-${playerName}`;
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const account = JSON.parse(stored);
-        if (account.balance >= amount) {
-          const transactionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          const transaction = {
-            id: transactionId,
-            type: 'withdrawal',
-            amount,
-            description,
-            timestamp: new Date().toISOString()
-          };
-          account.balance -= amount;
-          account.transactions = [transaction, ...account.transactions];
-          localStorage.setItem(storageKey, JSON.stringify(account));
-          return true;
-        }
-      }
+      return mockInternet.addBankTransaction('withdrawal', amount, description);
     } catch (error) {
       console.error('Failed to spend money from bank account:', error);
+      return false;
     }
-    return false;
   },
 
-  getBalance: (playerName: string) => {
+  getBalance: (mockInternet: MockInternet) => {
     try {
-      const storageKey = `bank-account-${playerName}`;
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const account = JSON.parse(stored);
-        return account.balance || 0;
-      }
+      return mockInternet.getBankBalance();
     } catch (error) {
       console.error('Failed to get bank balance:', error);
+      return 0;
     }
-    return 0;
   }
 };
 
-export default function ChasteBank({ setupData }: ChasteBankProps) {
-  const [account, setAccount] = useState<BankAccount | null>(() => {
-    const storageKey = getBankAccountKey(setupData?.playerName || 'user');
-    return getFromStorage<BankAccount | null>(storageKey, null);
-  });
-  const [showCreateAccount, setShowCreateAccount] = useState(() => {
-    const storageKey = getBankAccountKey(setupData?.playerName || 'user');
-    return !getFromStorage<BankAccount | null>(storageKey, null);
-  });
-
-  const generateTransactionId = () => {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  };
-
-  const saveAccount = (accountData: BankAccount) => {
-    const storageKey = getBankAccountKey(setupData?.playerName || 'user');
-    if (setInStorage(storageKey, accountData)) {
-      setAccount(accountData);
-    }
-  };
+export default function ChasteBank({ setupData, mockInternet }: ChasteBankProps) {
+  const [account, setAccount] = useState<BankAccount | null>(() => mockInternet.getBankAccount());
+  const [showCreateAccount, setShowCreateAccount] = useState(() => !mockInternet.getBankAccount());
 
   const createAccount = () => {
     if (!setupData) return;
-
-    const newAccount: BankAccount = {
-      accountNumber: generateAccountNumber(),
-      balance: 420, // Starting balance
-      transactions: [{
-        id: generateTransactionId(),
-        type: 'deposit',
-        amount: 420,
-        description: 'Welcome bonus - Account opening',
-        timestamp: new Date().toISOString()
-      }],
-      createdAt: new Date().toISOString()
-    };
-
-    saveAccount(newAccount);
+    const newAccount = mockInternet.createBankAccount();
+    setAccount(newAccount);
     setShowCreateAccount(false);
-  };
-
-  const generateAccountNumber = () => {
-    return 'CB' + Math.random().toString().substr(2, 10);
-  };
-
-  const addTransaction = (type: 'deposit' | 'withdrawal' | 'transfer', amount: number, description: string) => {
-    if (!account) return;
-
-    const transaction: Transaction = {
-      id: generateTransactionId(),
-      type,
-      amount,
-      description,
-      timestamp: new Date().toISOString()
-    };
-
-    const updatedAccount = {
-      ...account,
-      balance: type === 'deposit' ? account.balance + amount :
-               type === 'withdrawal' ? account.balance - amount :
-               account.balance - amount, // transfer out
-      transactions: [transaction, ...account.transactions]
-    };
-
-    saveAccount(updatedAccount);
   };
 
   // Functions for automatic transactions (called by other game systems)
   const addMoney = (amount: number, description: string) => {
     if (!account) return;
-    addTransaction('deposit', amount, description);
+    mockInternet.addBankTransaction('deposit', amount, description);
+    setAccount(mockInternet.getBankAccount()); // Refresh state
   };
 
   const spendMoney = (amount: number, description: string) => {
     if (!account || amount > account.balance) return false;
-    addTransaction('withdrawal', amount, description);
-    return true;
+    const success = mockInternet.addBankTransaction('withdrawal', amount, description);
+    if (success) {
+      setAccount(mockInternet.getBankAccount()); // Refresh state
+    }
+    return success;
   };
 
   if (showCreateAccount) {
@@ -295,9 +190,9 @@ export default function ChasteBank({ setupData }: ChasteBankProps) {
           padding: '20px'
         }}>
           <h2 style={{ marginTop: '0', color: '#495057' }}>Transaction History</h2>
-          {account.transactions.length === 0 ? (
+          {account && account.transactions.length === 0 ? (
             <p>No transactions yet.</p>
-          ) : (
+          ) : account ? (
             <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               {account.transactions.map((transaction) => (
                 <div key={transaction.id} style={{
@@ -323,6 +218,8 @@ export default function ChasteBank({ setupData }: ChasteBankProps) {
                 </div>
               ))}
             </div>
+          ) : (
+            <p>Loading transactions...</p>
           )}
         </div>
       </div>

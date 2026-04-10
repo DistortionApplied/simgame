@@ -5,6 +5,7 @@ import { MockInternet, Website } from '../lib/internet';
 import { GoogoSearchPage, generateSearchResults } from './Googo';
 import ChasteBank from './ChasteBank';
 import Spamazon from './Spamazon';
+import Slickipedia from './Slickipedia';
 import Glitchub from './Glitchub';
 import ViewTube from './ViewTube';
 import { getBrowserBookmarksKey, getBrowserHomeKey, getBrowserHistoryKey, getFromStorage, setInStorage } from '../lib/storage';
@@ -61,7 +62,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const currentHistoryIndex = tabHistoryIndices[activeTab] || 0;
 
   // Determine if the current website should be rendered in light mode
-  const isLightTheme = currentWebsite?.domain === 'googo.com' || currentWebsite?.domain === 'wikipedia.org';
+  const isLightTheme = currentWebsite?.domain === 'googo.com' || currentWebsite?.domain === 'slickipedia.org';
 
   // Load bookmarks, history, and home URL from localStorage
   const loadBookmarks = useCallback(() => {
@@ -549,9 +550,11 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
               }} />
             )
           ) : currentWebsite?.domain === 'chastebank.com' ? (
-            <ChasteBank setupData={setupData} />
+            <ChasteBank setupData={setupData} mockInternet={mockInternet} />
           ) : currentWebsite?.domain === 'spamazon.com' ? (
-            <Spamazon setupData={setupData} />
+            <Spamazon playerName={setupData?.playerName || 'user'} mockInternet={mockInternet} />
+          ) : currentWebsite?.domain === 'slickipedia.org' ? (
+            <Slickipedia setupData={setupData} mockInternet={mockInternet} initialUrl={currentUrl} />
           ) : currentWebsite?.domain === 'glitchub.com' ? (
             <Glitchub setupData={setupData} />
           ) : currentWebsite?.domain === 'viewtube.com' ? (

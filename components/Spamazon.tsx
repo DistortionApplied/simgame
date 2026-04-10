@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { bankUtils } from './ChasteBank';
+import { MockInternet } from '../lib/internet';
 
 interface GameSetup {
   playerName: string;
@@ -22,7 +23,8 @@ interface CartItem {
 }
 
 interface SpamazonProps {
-  setupData: GameSetup | null;
+  playerName: string;
+  mockInternet: MockInternet;
 }
 
 const products: Product[] = [
@@ -32,10 +34,9 @@ const products: Product[] = [
   { id: '4', name: 'Software Package', price: 30, description: 'Additional tools for your system' },
 ];
 
-export default function Spamazon({ setupData }: SpamazonProps) {
+export default function Spamazon({ playerName, mockInternet }: SpamazonProps) {
   const [showCart, setShowCart] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
-  const playerName = setupData?.playerName || 'user';
 
   const [cart, setCart] = useState<CartItem[]>(() => {
     const storedCart = localStorage.getItem(`spamazon-cart-${playerName}`);
@@ -85,9 +86,9 @@ export default function Spamazon({ setupData }: SpamazonProps) {
 
   const checkout = () => {
     const total = getTotal();
-    const balance = bankUtils.getBalance(playerName);
+    const balance = bankUtils.getBalance(mockInternet);
     if (balance >= total) {
-      bankUtils.spendMoney(playerName, total, `Purchase from Spamazon - ${cart.length} items`);
+      bankUtils.spendMoney(mockInternet, total, `Purchase from Spamazon - ${cart.length} items`);
       setCart([]);
       localStorage.removeItem(`spamazon-cart-${playerName}`);
       setPurchaseMessage(`Purchase successful! $${total.toFixed(2)} deducted from your account.`);

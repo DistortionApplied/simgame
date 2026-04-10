@@ -51,6 +51,7 @@ export default function Home() {
     // Clear existing filesystem and internet data for this user
     localStorage.removeItem(`linux-sim-filesystem-${data.playerName}`);
     localStorage.removeItem(`linux-sim-internet-${data.playerName}`);
+    localStorage.removeItem(`bank-account-${data.playerName}`);
 
     setMockInternet(new MockInternet(completeSetup));
     setGameState('playing');

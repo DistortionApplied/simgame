@@ -136,8 +136,8 @@ export function clearPlayerData(playerName: string): void {
     getTerminalHistoryKey(playerName),
     getBrowserBookmarksKey(playerName),
     getBrowserHomeKey(playerName),
-    getBrowserHistoryKey(playerName),
-    getBankAccountKey(playerName)
+    getBrowserHistoryKey(playerName)
+    // Bank account is now part of internet data, so no separate key
   ];
 
   keys.forEach(key => removeFromStorage(key));
