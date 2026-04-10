@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AVAILABLE_PACKAGES, PackageInfo } from '../lib/apt';
+import { getInstalledPackagesKey, getFromStorage, setInStorage } from '../lib/storage';
 
 interface GameSetup {
   playerName: string;
@@ -24,9 +25,12 @@ interface Repository {
 }
 
 export default function Glitchub({ setupData }: GlitchubProps) {
-  const [installedPackages, setInstalledPackages] = useState<Record<string, any>>({});
-  const [installing, setInstalling] = useState<string | null>(null);
   const playerName = setupData?.playerName || 'user';
+  const [installedPackages, setInstalledPackages] = useState<Record<string, any>>(() => {
+    const installedKey = getInstalledPackagesKey(playerName);
+    return getFromStorage<Record<string, any>>(installedKey, {});
+  });
+  const [installing, setInstalling] = useState<string | null>(null);
 
   // Generate repository data once on mount
   const [repositories] = useState<Repository[]>(() => {
@@ -41,21 +45,14 @@ export default function Glitchub({ setupData }: GlitchubProps) {
     }));
   });
 
-  // Load installed packages from localStorage
-  useEffect(() => {
-    const installedKey = `linux-sim-installed-packages-${playerName}`;
-    const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
-    setInstalledPackages(installed);
-  }, [playerName]);
-
   // Simulate package installation
   const installPackage = (packageName: string) => {
     setInstalling(packageName);
 
     // Simulate installation delay
     setTimeout(() => {
-      const installedKey = `linux-sim-installed-packages-${playerName}`;
-      const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+      const installedKey = getInstalledPackagesKey(playerName);
+      const installed = getFromStorage<Record<string, any>>(installedKey, {});
 
       if (!installed[packageName]) {
         const pkg = AVAILABLE_PACKAGES[packageName];
@@ -63,8 +60,9 @@ export default function Glitchub({ setupData }: GlitchubProps) {
           ...pkg,
           installedAt: new Date().toISOString()
         };
-        localStorage.setItem(installedKey, JSON.stringify(installed));
-        setInstalledPackages(installed);
+        if (setInStorage(installedKey, installed)) {
+          setInstalledPackages(installed);
+        }
       }
 
       setInstalling(null);

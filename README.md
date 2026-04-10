@@ -39,9 +39,11 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer.Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. I need to finish setting up the websites currently in the game. let's start with (---------).Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. The banking information is not storing properly. every user will need to have a separate bank account they will need to create. I just created a new user and the banking info was old. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
+
+
 
   I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the mock internet, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
 
@@ -263,6 +265,14 @@ Issues Identified
     - Rick Roll activated
     - continued mockweb design,s and improvements.
     - push to save changes
+    - bug fixes
+        - have, apparently, taken care of Immediate Fixes (High Priority)
+            - Fix React Hook Violations: Update dependency arrays and avoid synchronous setState in  useEffects
+            - Add Cleanup for Timers: Implement proper cleanup for setTimeout/setInterval in Terminal component
+            - Consolidate localStorage Logic: Create utility functions for key generation and data management
+    - seemingly unnecessary new agent push to save bug fixes.
+    x fix the banking information storage
+    x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.
         x mockweb design

@@ -6,6 +6,7 @@ import { executeNmap } from '../lib/nmap';
 import { executeApt, AVAILABLE_PACKAGES, createIsPackageInstalled } from '../lib/apt';
 import { getCommandHelp } from '../lib/commandHelp';
 import { executeReboot } from '../lib/reboot';
+import { getInstalledPackagesKey, getTerminalHistoryKey, getFromStorage, setInStorage } from '../lib/storage';
 import { MockInternet } from '../lib/internet';
 
 export interface TerminalLine {
@@ -42,16 +43,15 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
   ]);
   const [currentInput, setCurrentInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>(() => {
-    const key = `terminal-history-${setupData?.playerName || 'user'}`;
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : [];
+    const key = getTerminalHistoryKey(setupData?.playerName || 'user');
+    return getFromStorage<string[]>(key, []);
   });
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Helper function to save command history to localStorage
   const saveCommandHistory = (history: string[]) => {
-    const key = `terminal-history-${setupData?.playerName || 'user'}`;
-    localStorage.setItem(key, JSON.stringify(history));
+    const key = getTerminalHistoryKey(setupData?.playerName || 'user');
+    setInStorage(key, history);
   };
   const [fs] = useState(() => {
     const filesystem = new FakeFileSystem(setupData);
@@ -88,6 +88,7 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
   const inputRef = useRef<HTMLInputElement>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
   const isPasswordHandledRef = useRef(false);
+  const installationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Helper method for find command
   const findFiles = (dir: any, pattern: string, currentPath: string, results: string[]) => {
@@ -129,6 +130,12 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
   };
 
   const startPackageInstallation = (packageName: string) => {
+    // Clear any existing installation
+    if (installationIntervalRef.current) {
+      clearInterval(installationIntervalRef.current);
+      installationIntervalRef.current = null;
+    }
+
     setInstallingPackage(packageName);
     const pkg = AVAILABLE_PACKAGES[packageName];
 
@@ -170,14 +177,15 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
 
       if (progress >= totalSteps) {
         clearInterval(interval);
+        installationIntervalRef.current = null;
         // Complete installation
         setLines(prev => [...prev, { type: 'output', content: `Setting up ${packageName} (${pkg.version}) ...` }, { type: 'output', content: '' }]);
 
         // Mark as installed
-        const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
-        const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+        const installedKey = getInstalledPackagesKey(setupData?.playerName || 'user');
+        const installed = getFromStorage<Record<string, any>>(installedKey, {});
         installed[packageName] = { ...pkg, installedAt: new Date().toISOString() };
-        localStorage.setItem(installedKey, JSON.stringify(installed));
+        setInStorage(installedKey, installed);
 
         // Create files
         fs.createNewDirectory(`/usr/share/${packageName}`);
@@ -198,6 +206,8 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
         setInstallingPackage(null);
       }
     }, 300); // 300ms per step, total ~3 seconds
+
+    installationIntervalRef.current = interval;
   };
 
   const executeCommand = (command: string) => {
@@ -1820,6 +1830,15 @@ Examples:
       inputRef.current?.focus();
     }
   }, [installingPackage]);
+
+  // Cleanup installation interval on unmount
+  useEffect(() => {
+    return () => {
+      if (installationIntervalRef.current) {
+        clearInterval(installationIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-green-400 font-mono p-4">

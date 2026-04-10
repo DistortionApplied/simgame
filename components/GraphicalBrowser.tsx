@@ -7,6 +7,7 @@ import ChasteBank from './ChasteBank';
 import Spamazon from './Spamazon';
 import Glitchub from './Glitchub';
 import ViewTube from './ViewTube';
+import { getBrowserBookmarksKey, getBrowserHomeKey, getBrowserHistoryKey, getFromStorage, setInStorage } from '../lib/storage';
 
 
 interface GameSetup {
@@ -41,15 +42,14 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
-    const key = `browser-bookmarks-${setupData?.playerName || 'user'}`;
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : [];
+    const key = getBrowserBookmarksKey(setupData?.playerName || 'user');
+    return getFromStorage<string[]>(key, []);
   });
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [homeUrl, setHomeUrl] = useState(() => {
-    const key = `browser-home-${setupData?.playerName || 'user'}`;
-    return localStorage.getItem(key) || 'http://googo.com';
+    const key = getBrowserHomeKey(setupData?.playerName || 'user');
+    return getFromStorage<string>(key, 'http://googo.com');
   });
   const dragOffsetRef = useRef(dragOffset);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -73,30 +73,31 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   }, [setupData]);
 
   const saveBookmarks = useCallback((newBookmarks: string[]) => {
-    const key = `browser-bookmarks-${setupData?.playerName || 'user'}`;
-    localStorage.setItem(key, JSON.stringify(newBookmarks));
-    setBookmarks(newBookmarks);
+    const key = getBrowserBookmarksKey(setupData?.playerName || 'user');
+    if (setInStorage(key, newBookmarks)) {
+      setBookmarks(newBookmarks);
+    }
   }, [setupData]);
 
   const saveHomeUrl = useCallback((newHomeUrl: string) => {
-    const key = `browser-home-${setupData?.playerName || 'user'}`;
-    localStorage.setItem(key, newHomeUrl);
-    setHomeUrl(newHomeUrl);
+    const key = getBrowserHomeKey(setupData?.playerName || 'user');
+    if (setInStorage(key, newHomeUrl)) {
+      setHomeUrl(newHomeUrl);
+    }
   }, [setupData]);
 
   const loadHistory = useCallback(() => {
-    const key = `browser-history-${setupData?.playerName || 'user'}`;
-    const stored = localStorage.getItem(key);
+    const key = getBrowserHistoryKey(setupData?.playerName || 'user');
+    const stored = getFromStorage<{ histories: string[][], indices: number[] } | null>(key, null);
     if (stored) {
-      const parsed = JSON.parse(stored);
-      setTabHistories(parsed.histories || [[initialUrl]]);
-      setTabHistoryIndices(parsed.indices || [0]);
+      setTabHistories(stored.histories || [[initialUrl]]);
+      setTabHistoryIndices(stored.indices || [0]);
     }
   }, [setupData, initialUrl]);
 
   const saveHistory = useCallback((newHistories: string[][], newIndices: number[]) => {
-    const key = `browser-history-${setupData?.playerName || 'user'}`;
-    localStorage.setItem(key, JSON.stringify({ histories: newHistories, indices: newIndices }));
+    const key = getBrowserHistoryKey(setupData?.playerName || 'user');
+    setInStorage(key, { histories: newHistories, indices: newIndices });
   }, [setupData]);
 
   // Load website content when URL changes or refresh is triggered

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getBankAccountKey, getFromStorage, setInStorage } from '../lib/storage';
 
 interface GameSetup {
   playerName: string;
@@ -97,40 +98,23 @@ export const bankUtils = {
 };
 
 export default function ChasteBank({ setupData }: ChasteBankProps) {
-  const [account, setAccount] = useState<BankAccount | null>(null);
-  const [showCreateAccount, setShowCreateAccount] = useState(false);
-  const getStorageKey = () => `bank-account-${setupData?.playerName || 'user'}`;
+  const [account, setAccount] = useState<BankAccount | null>(() => {
+    const storageKey = getBankAccountKey(setupData?.playerName || 'user');
+    return getFromStorage<BankAccount | null>(storageKey, null);
+  });
+  const [showCreateAccount, setShowCreateAccount] = useState(() => {
+    const storageKey = getBankAccountKey(setupData?.playerName || 'user');
+    return !getFromStorage<BankAccount | null>(storageKey, null);
+  });
 
   const generateTransactionId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const loadAccount = useCallback(() => {
-    try {
-      const stored = localStorage.getItem(getStorageKey());
-      if (stored) {
-        const parsedAccount = JSON.parse(stored);
-        setAccount(parsedAccount);
-        setShowCreateAccount(false);
-      } else {
-        setShowCreateAccount(true);
-      }
-    } catch (error) {
-      console.error('Failed to load bank account:', error);
-      setShowCreateAccount(true);
-    }
-  }, [setupData]);
-
-  useEffect(() => {
-    loadAccount();
-  }, [loadAccount]);
-
   const saveAccount = (accountData: BankAccount) => {
-    try {
-      localStorage.setItem(getStorageKey(), JSON.stringify(accountData));
+    const storageKey = getBankAccountKey(setupData?.playerName || 'user');
+    if (setInStorage(storageKey, accountData)) {
       setAccount(accountData);
-    } catch (error) {
-      console.error('Failed to save bank account:', error);
     }
   };
 
