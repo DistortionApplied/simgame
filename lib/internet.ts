@@ -93,6 +93,13 @@ export class MockInternet {
   constructor(setupData: any) {
     this.setupData = setupData;
     this.data = this.loadFromLocalStorage() || this.generateNewInternet();
+    // Ensure DNS is populated from websites if missing
+    if (this.data.dns.size === 0 && this.data.websites.length > 0) {
+      this.data.websites.forEach(website => {
+        this.data.dns.set(website.domain, website.ip);
+      });
+      this.saveToLocalStorage();
+    }
     this.saveToLocalStorage();
   }
 
@@ -106,10 +113,10 @@ export class MockInternet {
       if (stored) {
         const parsed = JSON.parse(stored);
          // Check version - regenerate if outdated
-        if (!parsed.version || parsed.version !== '21.0') {
-          console.log('Internet data version outdated, regenerating...', parsed.version, '-> 21.0');
-          return null;
-        }
+        if (!parsed.version || parsed.version !== '24.0') {
+           console.log('Internet data version outdated, regenerating...', parsed.version, '-> 24.0');
+           return null;
+         }
         // Convert Maps back from objects
         parsed.dns = new Map(Object.entries(parsed.dns || {}));
         parsed.servers.forEach((server: any) => {
@@ -189,7 +196,7 @@ export class MockInternet {
       playerIP,
       gatewayIP,
       createdAt: new Date().toISOString(),
-      version: '21.0' // Increment when templates change
+      version: '24.0' // Increment when templates change
     };
   }
 
@@ -217,7 +224,6 @@ export class MockInternet {
       'readdit.com',
       'viewtube.com',
       'spamazon.com',
-      'facespace.com',
       'skitter.com',
       'geemail.com',
       'chastebank.com',
@@ -240,7 +246,6 @@ export class MockInternet {
         'readdit.com': 'Readdit',
         'viewtube.com': 'ViewTube',
         'spamazon.com': 'Spamazon',
-        'facespace.com': 'FaceSpace',
         'skitter.com': 'Skitter',
         'geemail.com': 'GeeMail',
         'chastebank.com': 'Chaste Bank'
@@ -342,11 +347,19 @@ export class MockInternet {
 
   // Public API methods
   resolveDomain(domain: string): string | null {
-    return this.data.dns.get(domain.toLowerCase()) || null;
+    const lowerDomain = domain.toLowerCase();
+    // Alias twitter.com to skitter.com
+    if (lowerDomain === 'twitter.com') {
+      return this.data.dns.get('skitter.com') || null;
+    }
+    return this.data.dns.get(lowerDomain) || null;
   }
 
   getWebsiteByDomain(domain: string): Website | null {
-    return this.data.websites.find(w => w.domain.toLowerCase() === domain.toLowerCase()) || null;
+    const lowerDomain = domain.toLowerCase();
+    // Alias twitter.com to skitter.com
+    const resolvedDomain = lowerDomain === 'twitter.com' ? 'skitter.com' : lowerDomain;
+    return this.data.websites.find(w => w.domain.toLowerCase() === resolvedDomain) || null;
   }
 
   getWebsiteByIP(ip: string): Website | null {
@@ -404,7 +417,6 @@ export class MockInternet {
       'readdit.com': 'Readdit Corp.',
       'viewtube.com': 'ViewTube LLC',
       'spamazon.com': 'Spamazon Inc.',
-      'facespace.com': 'FaceSpace Ltd.',
       'skitter.com': 'Skitter Media',
       'default': 'Network Solutions LLC'
     };

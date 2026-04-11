@@ -8,6 +8,7 @@ import Spamazon from './Spamazon';
 import Slickipedia from './Slickipedia';
 import Glitchub from './Glitchub';
 import ViewTube from './ViewTube';
+import Skitter from './Skitter';
 import { getBrowserBookmarksKey, getBrowserHomeKey, getBrowserHistoryKey, getFromStorage, setInStorage } from '../lib/storage';
 
 
@@ -175,6 +176,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
       return;
     }
 
+    console.log('Setting currentWebsite for domain:', domain, 'website:', website);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentWebsite(website);
     setUrlInput(currentUrl);
@@ -559,6 +561,8 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
             <Glitchub setupData={setupData} />
           ) : currentWebsite?.domain === 'viewtube.com' ? (
             <ViewTube setupData={setupData} />
+          ) : currentWebsite?.domain === 'skitter.com' ? (
+            <Skitter setupData={setupData} />
           ) : currentWebsite ? (
             <div className="max-w-4xl mx-auto p-4">
               <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />

@@ -87,8 +87,7 @@ export function generateSearchResults(query: string, isLucky: boolean, mockInter
       'slickipedia.org': ['slickipedia', 'slickipedia.org', 'info', 'information', 'wiki'],
       'readdit.com': ['reddit', 'reddit.com', 'social media', 'social', 'forum'],
       'viewtube.com': ['viewtube', 'viewtube.com', 'video', 'videos', 'youtube', 'youtube.com'],
-      'facespace.com': ['facebook', 'facebook.com', 'social', 'social media'],
-      'skitter.com': ['twitter', 'twitter.com', 'tweet', 'social']
+      'skitter.com': ['skitter', 'skitter.com', 'tweet', 'social']
     };
 
     const siteAliases = aliases[w.domain] || [];

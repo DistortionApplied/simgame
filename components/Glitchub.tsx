@@ -279,7 +279,7 @@ export default function Glitchub({ setupData }: GlitchubProps) {
               <a href="#" style={{ color: '#c9d1d9', textDecoration: 'none', fontSize: '14px' }}>Forums</a>
               <a href="#" style={{ color: '#c9d1d9', textDecoration: 'none', fontSize: '14px' }}>Blog</a>
               <a href="#" style={{ color: '#c9d1d9', textDecoration: 'none', fontSize: '14px' }}>GlitcHub</a>
-              <a href="#" style={{ color: '#c9d1d9', textDecoration: 'none', fontSize: '14px' }}>Twitter</a>
+              <a href="#" style={{ color: '#c9d1d9', textDecoration: 'none', fontSize: '14px' }}>Skitter</a>
             </div>
           </div>
         </div>

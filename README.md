@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. Let's start with (-------)Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. Let's start with removing all code pertaining to facebook or facespace, as we will not be implementing that website at this time. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -123,7 +123,6 @@ Add More Interactive Sites:
 
 Reddit clone (Readdit) with posts/comments
 Twitter clone (Skitter) with timeline
-Facebook clone (Facespace) with social features
 Mock Internet Enhancements (Medium Priority)
 Increase Variety:
 
@@ -334,9 +333,10 @@ Issues Identified
                 - never give up. never let down.
             - amazon.com - "spamazon.com"
                 - ready for items
-            x facebook.com - "facespace.com"
+            - removed facebook.com - "facespace.com"
             x twitter.com - "skitter.com"
-        - attempted this but efforts did not work.
+                - twitter does not still comes up in google
+                x Needs to be designed and made functional
         - made a little headway
         x improvement needed
     x need to work on existing websites 
