@@ -316,6 +316,8 @@ Issues Identified
     - seemingly unnecessary new agent push to save bug fixes.
     - fixed the banking information storage
     - push to save changes
+    - kept at the websites
+    - new bot push to save changes
     x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.
