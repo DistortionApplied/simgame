@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. first we need to fix the account creation form on geemail.com. account creation form is on the geemail.com website twice. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. first, I need to improve the simulated realism of the way apt update and apt upgrade appear to the player to work in the game. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -191,7 +191,7 @@ Issues Identified
     - autocomplete bug addressed
     - permissions testing done. preliminarily
     - adduser and userdel added
-    - ***ADDRESSING NEWLY ADDED USER PASSWORD PRONLEM***
+    - ***ADDRESSING NEWLY ADDED USER PASSWORD PROBLEM***
 1.5 rev & imp
     - Addressed password problem.
     - ignored browser spellcheck
@@ -320,12 +320,14 @@ Issues Identified
     - new bot push to save changes
     - the browser's window wackiness has chilled
     - push for new agent
+    - man page for whois is working again
+    - geemail account creation is now integrated with the geemail desktop app
     x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.
         x mockweb design
-            x geemail has ended up screwed up.
-            x account creation form is on the geemail.com website twice.
+            - geemail has ended up not screwed up.
+            - account creation form is on the geemail.com website once.
             - worked on it, almost there
             x need to add all the googo tags that could be searched for.
             - github.com - "glitchub.com"
@@ -341,11 +343,14 @@ Issues Identified
             - amazon.com - "spamazon.com"
                 - ready for items
             - removed facebook.com - "facespace.com"
-            x twitter.com - "skitter.com"
+            - twitter.com - "skitter.com"
                 - twitter does not still comes up in google
                 x Needs to be designed and made functional
         - made a little headway
         x improvement needed
+    x strange apt install output bug
+    x apt update and apt upgrade need work
+    x up arrow should include unsuccessful commands as well
     x Links on googo need to be worked on
     x terminal needs to save it's history better, a lot gets deleted or cleared along the way when   it shouldn't.
     

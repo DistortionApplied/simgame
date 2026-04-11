@@ -5,6 +5,7 @@ import { FakeFileSystem, User } from '../lib/filesystem';
 import { executeNmap } from '../lib/nmap';
 import { executeApt, AVAILABLE_PACKAGES, createIsPackageInstalled } from '../lib/apt';
 import { getCommandHelp } from '../lib/commandHelp';
+import { manPages } from '../lib/manPages';
 import { executeReboot } from '../lib/reboot';
 import { getInstalledPackagesKey, getTerminalHistoryKey, getFromStorage, setInStorage } from '../lib/storage';
 import { MockInternet } from '../lib/internet';
@@ -1374,11 +1375,10 @@ Note: This browser displays simulated website content in a graphical interface.
           error = 'What manual page do you want?\nUsage: man <command>';
         } else {
           const command = args[0];
-          const manPagePath = `/usr/share/man/man1/${command}.1`;
-          const content = fs.readFile(manPagePath);
+          const manPage = manPages[command];
 
-          if (content !== null) {
-            output = content;
+          if (manPage) {
+            output = manPage;
           } else {
             error = `man: No manual entry for ${command}\nTry 'help' to see available commands.`;
           }
