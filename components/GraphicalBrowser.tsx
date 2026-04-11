@@ -6,6 +6,7 @@ import { GoogoSearchPage, generateSearchResults } from './Googo';
 import ChasteBank from './ChasteBank';
 import Spamazon from './Spamazon';
 import Slickipedia from './Slickipedia';
+import GeeMail from './GeeMail';
 import Glitchub from './Glitchub';
 import ViewTube from './ViewTube';
 import Skitter from './Skitter';
@@ -281,11 +282,13 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   };
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragOffset({
+    const offset = {
       x: e.clientX - windowPosition.x,
       y: e.clientY - windowPosition.y,
-    });
+    };
+    setIsDragging(true);
+    setDragOffset(offset);
+    dragOffsetRef.current = offset;
   }, [windowPosition]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -347,14 +350,13 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
   }, [navigateTo]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-50">
+    <div className="fixed inset-0 bg-black z-50">
       <div
         className="bg-gray-900 w-full max-w-6xl h-5/6 rounded-lg shadow-2xl flex flex-col absolute border border-gray-700"
         style={{
           left: `${windowPosition.x}px`,
           top: `${windowPosition.y}px`,
-          transform: isDragging ? 'rotate(1deg)' : 'none',
-          transition: isDragging ? 'none' : 'transform 0.1s',
+          zIndex: 1000,
         }}
       >
         {/* Title bar */}
@@ -556,13 +558,15 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
           ) : currentWebsite?.domain === 'spamazon.com' ? (
             <Spamazon playerName={setupData?.playerName || 'user'} mockInternet={mockInternet} />
           ) : currentWebsite?.domain === 'slickipedia.org' ? (
-            <Slickipedia setupData={setupData} mockInternet={mockInternet} initialUrl={currentUrl} />
+             <Slickipedia setupData={setupData} mockInternet={mockInternet} initialUrl={currentUrl} />
+          ) : currentWebsite?.domain === 'geemail.com' ? (
+            <GeeMail setupData={setupData} mockInternet={mockInternet} isWebsite={true} />
           ) : currentWebsite?.domain === 'glitchub.com' ? (
-            <Glitchub setupData={setupData} />
+             <Glitchub setupData={setupData} />
           ) : currentWebsite?.domain === 'viewtube.com' ? (
-            <ViewTube setupData={setupData} />
+             <ViewTube setupData={setupData} />
           ) : currentWebsite?.domain === 'skitter.com' ? (
-            <Skitter setupData={setupData} />
+             <Skitter setupData={setupData} />
           ) : currentWebsite ? (
             <div className="max-w-4xl mx-auto p-4">
               <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />

@@ -12,12 +12,23 @@ interface GameSetup {
 }
 
 interface GeeMailProps {
-  onClose: () => void;
+  onClose?: () => void;
   setupData: GameSetup | null;
   mockInternet: MockInternet;
+  isWebsite?: boolean;
 }
 
-export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailProps) {
+export default function GeeMail({ onClose, setupData, mockInternet, isWebsite = false }: GeeMailProps) {
+  // Website mode state
+  const [accountForm, setAccountForm] = useState({
+    username: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
+
+  // App mode state
   const [currentView, setCurrentView] = useState<'inbox' | 'sent' | 'trash' | 'archive' | 'starred' | 'compose'>('inbox');
   const [emails, setEmails] = useState<Email[]>([]);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>([]);
@@ -34,6 +45,100 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
+
+  // Website mode functions
+  const handleAccountCreation = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!accountForm.username || !accountForm.password) {
+      setMessage('Username and password are required');
+      setMessageType('error');
+      return;
+    }
+
+    if (accountForm.password !== accountForm.confirmPassword) {
+      setMessage('Passwords do not match');
+      setMessageType('error');
+      return;
+    }
+
+    const email = `${accountForm.username}@geemail.com`;
+
+    // Check if account already exists
+    if (mockInternet.getEmailAccount(email)) {
+      setMessage('An account with this email already exists');
+      setMessageType('error');
+      return;
+    }
+
+    // Create the account
+    const success = mockInternet.createEmailAccount({
+      email,
+      password: accountForm.password,
+      displayName: accountForm.username, // Use username as display name
+      createdAt: new Date().toISOString()
+    });
+
+    if (success) {
+      setMessage(`Account created successfully! Your email address ${email} is now ready to use with the GeeMail desktop app.`);
+      setMessageType('success');
+
+      // Send welcome email with login instructions
+      const welcomeEmail = {
+        id: Date.now().toString(),
+        from: 'admin@geemail.com',
+        to: email,
+        cc: [],
+        bcc: [],
+        subject: 'Welcome to GeeMail - Your Account is Ready!',
+        body: `Welcome to GeeMail!
+
+Your email account has been successfully created and is ready to use!
+
+📧 Your Email Address: ${email}
+🔐 Your Password: ${accountForm.password}
+
+To start using GeeMail:
+
+1. Install the desktop app: apt install geemail
+2. Open the app and sign in with your new email address
+3. Start sending and receiving emails!
+
+Your account includes:
+• Unlimited email storage
+• Secure encryption
+• Web and desktop access
+
+Happy emailing!
+
+- The GeeMail Team
+admin@geemail.com`,
+        timestamp: new Date().toISOString(),
+        read: false,
+        starred: false,
+        labels: ['inbox'],
+        threadId: Date.now().toString(),
+        attachments: []
+      };
+
+      mockInternet.addEmail(welcomeEmail);
+
+      // Clear form on success
+      setAccountForm({
+        username: '',
+        password: '',
+        confirmPassword: ''
+      });
+    } else {
+      setMessage('Failed to create account. Please try again.');
+      setMessageType('error');
+    }
+  };
+
+  const handleInstall = () => {
+    setMessage('To install GeeMail, run: apt install geemail');
+    setMessageType('success');
+  };
 
   // Load emails from mock internet and initialize account
   React.useEffect(() => {
@@ -192,6 +297,496 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  // Website mode - show landing page
+  if (isWebsite) {
+    return (
+      <div style={{
+      fontFamily: '"Google Sans", Roboto, RobotoDraft, Helvetica, Arial, sans-serif',
+      backgroundColor: '#fff',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Header */}
+      <div style={{
+        borderBottom: '1px solid #e8eaed',
+        padding: '16px 24px',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <span style={{
+          fontSize: '20px',
+          fontWeight: '400',
+          color: '#ea4335',
+          letterSpacing: '-0.5px'
+        }}>
+          GeeMail
+        </span>
+      </div>
+
+      {/* Main Content */}
+      <div style={{
+        flex: '1',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '24px 16px',
+        maxWidth: '400px',
+        margin: '0 auto',
+        width: '100%'
+      }}>
+        {/* Title */}
+        <h1 style={{
+          fontSize: '24px',
+          fontWeight: '400',
+          color: '#202124',
+          margin: '0 0 8px 0',
+          textAlign: 'center',
+          letterSpacing: '0.25px'
+        }}>
+          Create your GeeMail Account
+        </h1>
+
+        {/* Account Creation Form */}
+        <form onSubmit={handleAccountCreation} style={{ width: '100%', maxWidth: '360px' }}>
+          {message && (
+            <div style={{
+              padding: '12px 16px',
+              marginBottom: '16px',
+              borderRadius: '4px',
+              backgroundColor: messageType === 'success' ? '#e8f5e8' : '#fce8e6',
+              color: messageType === 'success' ? '#1e4620' : '#c62828',
+              fontSize: '14px',
+              lineHeight: '1.4',
+              border: `1px solid ${messageType === 'success' ? '#4caf50' : '#ef5350'}`
+            }}>
+              {message}
+            </div>
+          )}
+
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={accountForm.username}
+                onChange={(e) => setAccountForm({...accountForm, username: e.target.value})}
+                placeholder=""
+                style={{
+                  width: '100%',
+                  padding: '20px 16px 4px 16px',
+                  border: '1px solid #dadce0',
+                  borderRadius: '4px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#202124',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  height: '56px'
+                }}
+                onFocus={(e) => (e.target as HTMLElement).style.borderColor = '#1a73e8'}
+                onBlur={(e) => (e.target as HTMLElement).style.borderColor = '#dadce0'}
+                required
+              />
+              <label style={{
+                position: 'absolute',
+                left: '16px',
+                top: accountForm.username ? '8px' : '16px',
+                fontSize: accountForm.username ? '12px' : '16px',
+                color: accountForm.username ? '#1a73e8' : '#5f6368',
+                pointerEvents: 'none',
+                transition: 'all 0.2s ease',
+                backgroundColor: '#fff',
+                padding: '0 4px'
+              }}>
+                Username
+              </label>
+              <div style={{
+                position: 'absolute',
+                right: '16px',
+                top: '16px',
+                fontSize: '14px',
+                color: '#5f6368'
+              }}>
+                @geemail.com
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="password"
+                value={accountForm.password}
+                onChange={(e) => setAccountForm({...accountForm, password: e.target.value})}
+                placeholder=""
+                style={{
+                  width: '100%',
+                  padding: '20px 16px 4px 16px',
+                  border: '1px solid #dadce0',
+                  borderRadius: '4px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#202124',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  height: '56px'
+                }}
+                onFocus={(e) => (e.target as HTMLElement).style.borderColor = '#1a73e8'}
+                onBlur={(e) => (e.target as HTMLElement).style.borderColor = '#dadce0'}
+                required
+              />
+              <label style={{
+                position: 'absolute',
+                left: '16px',
+                top: accountForm.password ? '8px' : '16px',
+                fontSize: accountForm.password ? '12px' : '16px',
+                color: accountForm.password ? '#1a73e8' : '#5f6368',
+                pointerEvents: 'none',
+                transition: 'all 0.2s ease',
+                backgroundColor: '#fff',
+                padding: '0 4px'
+              }}>
+                Password
+              </label>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="password"
+                value={accountForm.confirmPassword}
+                onChange={(e) => setAccountForm({...accountForm, confirmPassword: e.target.value})}
+                placeholder=""
+                style={{
+                  width: '100%',
+                  padding: '20px 16px 4px 16px',
+                  border: '1px solid #dadce0',
+                  borderRadius: '4px',
+                  fontSize: '16px',
+                  backgroundColor: '#fff',
+                  color: '#202124',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  height: '56px'
+                }}
+                onFocus={(e) => (e.target as HTMLElement).style.borderColor = '#1a73e8'}
+                onBlur={(e) => (e.target as HTMLElement).style.borderColor = '#dadce0'}
+                required
+              />
+              <label style={{
+                position: 'absolute',
+                left: '16px',
+                top: accountForm.confirmPassword ? '8px' : '16px',
+                fontSize: accountForm.confirmPassword ? '12px' : '16px',
+                color: accountForm.confirmPassword ? '#1a73e8' : '#5f6368',
+                pointerEvents: 'none',
+                transition: 'all 0.2s ease',
+                backgroundColor: '#fff',
+                padding: '0 4px'
+              }}>
+                Confirm password
+              </label>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              backgroundColor: '#1a73e8',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              textTransform: 'none',
+              letterSpacing: '0.25px',
+              transition: 'all 0.2s ease',
+              height: '40px'
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.backgroundColor = '#1557b0';
+              (e.target as HTMLElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.backgroundColor = '#1a73e8';
+              (e.target as HTMLElement).style.boxShadow = 'none';
+            }}
+          >
+            Next
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div style={{
+          marginTop: '24px',
+          textAlign: 'center'
+        }}>
+          <p style={{
+            fontSize: '12px',
+            color: '#5f6368',
+            margin: '0',
+            lineHeight: '1.5'
+          }}>
+            By creating an account, you agree to GeeMail&apos;s{' '}
+            <a href="#" style={{ color: '#1a73e8', textDecoration: 'none' }}>Terms of Service</a>{' '}
+            and{' '}
+            <a href="#" style={{ color: '#1a73e8', textDecoration: 'none' }}>Privacy Policy</a>
+          </p>
+        </div>
+
+          {message && (
+            <div style={{
+              padding: '12px 16px',
+              marginBottom: '24px',
+              borderRadius: '4px',
+              backgroundColor: messageType === 'success' ? '#e8f5e8' : '#fce8e6',
+              color: messageType === 'success' ? '#1e4620' : '#c62828',
+              border: `1px solid ${messageType === 'success' ? '#4caf50' : '#ef5350'}`,
+              fontSize: '14px',
+              lineHeight: '1.4'
+            }}>
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={handleAccountCreation} style={{ width: '100%' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <input
+                  type="text"
+                  value={accountForm.username}
+                  onChange={(e) => setAccountForm({...accountForm, username: e.target.value})}
+                  placeholder=""
+                  style={{
+                    width: '100%',
+                    padding: '20px 16px 4px 16px',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#202124',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    height: '56px'
+                  }}
+                  onFocus={(e) => (e.target as HTMLElement).style.borderColor = '#1a73e8'}
+                  onBlur={(e) => (e.target as HTMLElement).style.borderColor = '#dadce0'}
+                  required
+                />
+                <label style={{
+                  position: 'absolute',
+                  left: '16px',
+                  top: accountForm.username ? '8px' : '16px',
+                  fontSize: accountForm.username ? '12px' : '16px',
+                  color: accountForm.username ? '#1a73e8' : '#5f6368',
+                  pointerEvents: 'none',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: '#fff',
+                  padding: '0 4px'
+                }}>
+                  Username
+                </label>
+                <div style={{
+                  position: 'absolute',
+                  right: '16px',
+                  top: '16px',
+                  fontSize: '14px',
+                  color: '#5f6368'
+                }}>
+                  @geemail.com
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="password"
+                  value={accountForm.password}
+                  onChange={(e) => setAccountForm({...accountForm, password: e.target.value})}
+                  placeholder=""
+                  style={{
+                    width: '100%',
+                    padding: '20px 16px 4px 16px',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#202124',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    height: '56px'
+                  }}
+                  onFocus={(e) => (e.target as HTMLElement).style.borderColor = '#1a73e8'}
+                  onBlur={(e) => (e.target as HTMLElement).style.borderColor = '#dadce0'}
+                  required
+                />
+                <label style={{
+                  position: 'absolute',
+                  left: '16px',
+                  top: accountForm.password ? '8px' : '16px',
+                  fontSize: accountForm.password ? '12px' : '16px',
+                  color: accountForm.password ? '#1a73e8' : '#5f6368',
+                  pointerEvents: 'none',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: '#fff',
+                  padding: '0 4px'
+                }}>
+                  Password
+                </label>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="password"
+                  value={accountForm.confirmPassword}
+                  onChange={(e) => setAccountForm({...accountForm, confirmPassword: e.target.value})}
+                  placeholder=""
+                  style={{
+                    width: '100%',
+                    padding: '20px 16px 4px 16px',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    color: '#202124',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    height: '56px'
+                  }}
+                  onFocus={(e) => (e.target as HTMLElement).style.borderColor = '#1a73e8'}
+                  onBlur={(e) => (e.target as HTMLElement).style.borderColor = '#dadce0'}
+                  required
+                />
+                <label style={{
+                  position: 'absolute',
+                  left: '16px',
+                  top: accountForm.confirmPassword ? '8px' : '16px',
+                  fontSize: accountForm.confirmPassword ? '12px' : '16px',
+                  color: accountForm.confirmPassword ? '#1a73e8' : '#5f6368',
+                  pointerEvents: 'none',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: '#fff',
+                  padding: '0 4px'
+                }}>
+                  Confirm password
+                </label>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '12px 24px',
+                backgroundColor: '#1a73e8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                textTransform: 'none',
+                letterSpacing: '0.25px',
+                transition: 'all 0.2s ease',
+                height: '40px'
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLElement).style.backgroundColor = '#1557b0';
+                (e.target as HTMLElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLElement).style.backgroundColor = '#1a73e8';
+                (e.target as HTMLElement).style.boxShadow = 'none';
+              }}
+            >
+              Next
+            </button>
+          </form>
+
+          <div style={{
+            marginTop: '24px',
+            paddingTop: '24px',
+            borderTop: '1px solid #dadce0',
+            textAlign: 'center'
+          }}>
+            <p style={{
+              fontSize: '12px',
+              color: '#5f6368',
+              margin: '0',
+              lineHeight: '1.5'
+            }}>
+              By creating an account, you agree to GeeMail&apos;s{' '}
+              <a href="#" style={{ color: '#1a73e8', textDecoration: 'none' }}>Terms of Service</a>{' '}
+              and{' '}
+              <a href="#" style={{ color: '#1a73e8', textDecoration: 'none' }}>Privacy Policy</a>
+            </p>
+          </div>
+          </div>
+
+          {/* Download Section */}
+        <div style={{
+          background: 'white',
+          padding: '30px',
+          borderRadius: '10px',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          maxWidth: '600px',
+          margin: '0 auto 40px auto'
+        }}>
+          <h2 style={{ color: '#333', marginTop: '0' }}>Download GeeMail Desktop Application</h2>
+          <p style={{ margin: '20px 0', color: '#666' }}>
+            Get the full GeeMail experience with advanced features!
+          </p>
+
+          <div style={{
+            background: '#f8f9fa',
+            padding: '20px',
+            borderRadius: '5px',
+            margin: '20px 0'
+          }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>Installation Instructions:</h4>
+            <p style={{ margin: '0', color: '#666', fontFamily: 'monospace', background: 'white', padding: '10px', borderRadius: '3px', border: '1px solid #ddd' }}>
+              apt install geemail
+            </p>
+            <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#666' }}>
+              Run this command in your terminal to install GeeMail
+            </p>
+          </div>
+
+          <button
+            onClick={handleInstall}
+            style={{
+              padding: '15px 30px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              marginTop: '10px'
+            }}
+          >
+            Install GeeMail Desktop App
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // App mode - show email interface
   return (
     <div
       style={{
@@ -210,54 +805,56 @@ export default function GeeMail({ onClose, setupData, mockInternet }: GeeMailPro
         flexDirection: 'column'
       }}
     >
-      {/* Window Header */}
-      <div
-        style={{
-          backgroundColor: '#1a202c',
-          padding: '8px 12px',
-          borderBottom: '1px solid #4a5568',
-          borderRadius: '6px 6px 0 0',
-          cursor: 'move',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div
-            style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#e53e3e',
-              cursor: 'pointer'
-            }}
-            onClick={onClose}
-          />
-          <div
-            style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#38a169',
-              cursor: 'pointer'
-            }}
-          />
-          <div
-            style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#3182ce',
-              cursor: 'pointer'
-            }}
-          />
-          <span style={{ color: '#e2e8f0', fontSize: '14px', marginLeft: '8px' }}>
+      {/* Window Header - only show when not in website mode */}
+      {!isWebsite && (
+        <div
+          style={{
+            backgroundColor: '#1a202c',
+            padding: '8px 12px',
+            borderBottom: '1px solid #4a5568',
+            borderRadius: '6px 6px 0 0',
+            cursor: 'move',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: '#e53e3e',
+                cursor: 'pointer'
+              }}
+              onClick={onClose}
+            />
+            <div
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: '#38a169',
+                cursor: 'pointer'
+              }}
+            />
+            <div
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: '#3182ce',
+                cursor: 'pointer'
+              }}
+            />
+            <span style={{ color: '#e2e8f0', fontSize: '14px', marginLeft: '8px' }}>
             GeeMail - {currentView === 'inbox' ? 'Inbox' : 'Compose'}
           </span>
         </div>
       </div>
+      )}
 
       {/* Toolbar */}
       <div style={{
