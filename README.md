@@ -322,6 +322,8 @@ Issues Identified
     - push for new agent
     - man page for whois is working again
     - geemail account creation is now integrated with the geemail desktop app
+    - merged back to main.. i think
+    - new improv branch
     x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.
