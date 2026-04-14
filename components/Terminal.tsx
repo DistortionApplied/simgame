@@ -141,9 +141,11 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     setInstallingPackage(packageName);
     const pkg = AVAILABLE_PACKAGES[packageName];
 
+    // Add the command line before the initial output
+    setLines(prev => [...prev,  ...initialLines]);
+
     // Add initial lines
     const initialLines: TerminalLine[] = [
-      { type: 'input', content: `apt install ${packageName}`, commandPrompt: currentPrompt },
       { type: 'output', content: `Reading package lists... Done` },
       { type: 'output', content: `Building dependency tree... Done` },
       { type: 'output', content: `Reading state information... Done` },
@@ -158,7 +160,8 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
       { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
       { type: 'output', content: `Unpacking ${packageName} (${pkg.version}) ...` }
     ];
-    setLines(prev => [...prev, ...initialLines]);
+
+    
 
     // Simulate progress with timeouts
     let progress = 0;

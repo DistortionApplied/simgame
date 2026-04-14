@@ -129,14 +129,20 @@ SEE ALSO
   switch (subcommand) {
     case 'update': {
       // Simulate package list update
-      return {
-        output: `Ign:1 http://archive.ubuntu.com/ubuntu focal InRelease
+      const output = `Ign:1 http://archive.ubuntu.com/ubuntu focal InRelease
 Get:2 http://security.ubuntu.com/ubuntu focal-security InRelease [114 kB]
 Hit:3 http://archive.ubuntu.com/ubuntu focal-updates InRelease
 Get:4 http://archive.ubuntu.com/ubuntu focal-backports InRelease [108 kB]
-Fetched 222 kB in 1s (222 kB/s)
-Reading package lists... Done`
-      };
+Get:5 http://archive.ubuntu.com/ubuntu focal/universe InRelease [234 kB]
+Hit:6 http://archive.ubuntu.com/ubuntu focal/multiverse InRelease
+Get:7 http://deb.debian.org/debian stable/main InRelease [118 kB]
+Ign:8 http://deb.debian.org/debian stable/contrib InRelease
+Get:9 http://deb.debian.org/debian stable/non-free InRelease [132 kB]
+Hit:10 http://archive.debian.org/debian-security stable-security/updates InRelease
+Get:11 http://archive.debian.org/debian-backports stable-backports/main InRelease [89 kB]
+Fetched 689 kB in 2s (344 kB/s)
+Reading package lists... Done`;
+      return { lines: output.split('\n').map(line => ({ type: 'output', content: line })) };
     }
 
 
@@ -156,27 +162,25 @@ Reading package lists... Done`
       const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
 
       if (installed[packageName]) {
-        return { output: `${packageName} is already the newest version (${pkg.version}).` };
+        return { lines: [{ type: 'output', content: `${packageName} is already the newest version (${pkg.version}).` }] };
       }
 
       // Simulate installation
-      const lines: TerminalLine[] = [
-        { type: 'input', content: command, commandPrompt: currentPrompt },
-        { type: 'output', content: `Reading package lists... Done` },
-        { type: 'output', content: `Building dependency tree... Done` },
-        { type: 'output', content: `Reading state information... Done` },
-        { type: 'output', content: `The following NEW packages will be installed:` },
-        { type: 'output', content: `  ${packageName}` },
-        { type: 'output', content: `0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.` },
-        { type: 'output', content: `Need to get ${pkg.size} of archives.` },
-        { type: 'output', content: `After this operation, ${pkg.size} of additional disk space will be used.` },
-        { type: 'output', content: `Get:1 http://archive.ubuntu.com/ubuntu focal/universe ${packageName} ${pkg.version} [${pkg.size}]` },
-        { type: 'output', content: `Fetched ${pkg.size} in 1s (500 kB/s)` },
-        { type: 'output', content: `Selecting previously unselected package ${packageName}.` },
-        { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
-        { type: 'output', content: `Unpacking ${packageName} (${pkg.version}) ...` },
-        { type: 'output', content: `Setting up ${packageName} (${pkg.version}) ...` },
-        { type: 'output', content: '' }
+      const outputLines = [
+        `Reading package lists... Done`,
+        `Building dependency tree... Done`,
+        `Reading state information... Done`,
+        `The following NEW packages will be installed:`,
+        `  ${packageName}`,
+        `0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.`,
+        `Need to get ${pkg.size} of archives.`,
+        `After this operation, ${pkg.size} of additional disk space will be used.`,
+        `Get:1 http://archive.ubuntu.com/ubuntu focal/universe ${packageName} ${pkg.version} [${pkg.size}]`,
+        `Fetched ${pkg.size} in 1s (500 kB/s)`,
+        `Selecting previously unselected package ${packageName}.`,
+        `(Reading database ... 1000 files and directories currently installed.)`,
+        `Package ${packageName} installed.`,
+        ''
       ];
 
       // Mark as installed
@@ -200,7 +204,7 @@ Reading package lists... Done`
         fs.writeFile(`/bin/snake.bin`, '#!/bin/bash\n# snake game binary\n');
       }
 
-      return { lines };
+      return { lines: [{ type: 'input' as const, content: command, commandPrompt: currentPrompt }, ...outputLines.map(content => ({ type: 'output' as const, content }))] };
     }
 
     case 'remove': {
@@ -218,16 +222,15 @@ Reading package lists... Done`
       }
 
       // Simulate removal
-      const lines: TerminalLine[] = [
-        { type: 'input', content: command, commandPrompt: currentPrompt },
-        { type: 'output', content: `Reading package lists... Done` },
-        { type: 'output', content: `Building dependency tree... Done` },
-        { type: 'output', content: `Reading state information... Done` },
-        { type: 'output', content: `The following packages will be REMOVED:` },
-        { type: 'output', content: `  ${packageName}` },
-        { type: 'output', content: `0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.` },
-        { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
-        { type: 'output', content: `Removing ${packageName} (${installed[packageName].version}) ...` }
+      const outputLines = [
+        `Reading package lists... Done`,
+        `Building dependency tree... Done`,
+        `Reading state information... Done`,
+        `The following packages will be REMOVED:`,
+        `  ${packageName}`,
+        `0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.`,
+        `(Reading database ... 1000 files and directories currently installed.)`,
+        `Removing ${packageName} (${installed[packageName].version}) ...`
       ];
 
       // Remove from installed
@@ -248,7 +251,7 @@ Reading package lists... Done`
       fs.remove(`/usr/share/${packageName}/version.txt`);
       fs.removeDirectory(`/usr/share/${packageName}`);
 
-      return { lines };
+      return { lines: [{ type: 'input' as const, content: command, commandPrompt: currentPrompt }, ...outputLines.map(content => ({ type: 'output' as const, content }))] };
     }
 
     case 'search': {
@@ -260,7 +263,7 @@ Reading package lists... Done`
         .filter(pkg => pkg.name.includes(pattern) || pkg.description.toLowerCase().includes(pattern))
         .map(pkg => `${pkg.name}/focal ${pkg.version} amd64\n  ${pkg.description}`);
 
-      return { output: results.length === 0 ? '' : results.join('\n\n') };
+      return { lines: results.length === 0 ? [] : results.join('\n\n').split('\n').map(line => ({ type: 'output', content: line })) };
     }
 
     case 'show': {
@@ -274,8 +277,7 @@ Reading package lists... Done`
         return { error: `E: Unable to locate package ${packageName}` };
       }
 
-      return {
-        output: `Package: ${pkg.name}
+      const output = `Package: ${pkg.name}
 Version: ${pkg.version}
 Maintainer: ${pkg.maintainer}
 Description: ${pkg.description}
@@ -283,8 +285,8 @@ Homepage: https://packages.ubuntu.com/focal/${pkg.name}
 Download-Size: ${pkg.size}
 APT-Manual-Installed: no
 APT-Sources: http://archive.ubuntu.com/ubuntu focal/universe amd64 Packages
-Description: ${pkg.description}`
-      };
+Description: ${pkg.description}`;
+      return { lines: output.split('\n').map(line => ({ type: 'output', content: line })) };
     }
 
     case 'list': {
@@ -293,14 +295,14 @@ Description: ${pkg.description}`
 
       if (subArgs.includes('--installed')) {
         const installedList = Object.keys(installed).map(name => `${name}/focal ${installed[name].version} amd64 [installed]`);
-        return { output: installedList.join('\n') };
+        return { lines: installedList.map(line => ({ type: 'output', content: line })) };
       } else {
         // List all available packages
         const allPackages = Object.values(AVAILABLE_PACKAGES).map(pkg => {
           const isInstalled = installed[pkg.name];
           return `${pkg.name}/focal ${pkg.version} amd64${isInstalled ? ' [installed]' : ''}`;
         });
-        return { output: allPackages.join('\n') };
+        return { lines: allPackages.map(line => ({ type: 'output', content: line })) };
       }
     }
 
@@ -315,7 +317,7 @@ Description: ${pkg.description}`
       });
 
       if (upgradable.length === 0) {
-        return { output: 'All packages are up to date.' };
+        return { lines: [{ type: 'output', content: 'All packages are up to date.' }] };
       } else {
         const outputLines = [
           `Reading package lists... Done`,

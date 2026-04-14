@@ -353,7 +353,7 @@ Issues Identified
         x improvement needed
     x strange apt install output bug, seems to be the same as upgrade bug
     - apt update is mostly fine
-        x could use a few more repos, or ability to add them
+        - uses a few more repos
     - apt upgrade almost there
         x output needs to all be below the command line that it is responding to
     x up arrow should include unsuccessful commands as well to allow for fast corrections
