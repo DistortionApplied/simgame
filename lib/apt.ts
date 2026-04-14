@@ -130,15 +130,15 @@ SEE ALSO
     case 'update': {
       // Simulate package list update
       return {
-        lines: [
-          { type: 'input', content: command, commandPrompt: currentPrompt },
-          { type: 'output', content: 'Get:1 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]' },
-          { type: 'output', content: 'Get:2 http://archive.ubuntu.com/ubuntu focal-updates InRelease [114 kB]' },
-          { type: 'output', content: 'Fetched 379 kB in 1s (379 kB/s)' },
-          { type: 'output', content: 'Reading package lists... Done' }
-        ]
+        output: `Ign:1 http://archive.ubuntu.com/ubuntu focal InRelease
+Get:2 http://security.ubuntu.com/ubuntu focal-security InRelease [114 kB]
+Hit:3 http://archive.ubuntu.com/ubuntu focal-updates InRelease
+Get:4 http://archive.ubuntu.com/ubuntu focal-backports InRelease [108 kB]
+Fetched 222 kB in 1s (222 kB/s)
+Reading package lists... Done`
       };
     }
+
 
     case 'install': {
       if (subArgs.length === 0) {
@@ -317,22 +317,21 @@ Description: ${pkg.description}`
       if (upgradable.length === 0) {
         return { output: 'All packages are up to date.' };
       } else {
-        const lines: TerminalLine[] = [
-          { type: 'input', content: command, commandPrompt: currentPrompt },
-          { type: 'output', content: `Reading package lists... Done` },
-          { type: 'output', content: `Building dependency tree... Done` },
-          { type: 'output', content: `Reading state information... Done` },
-          { type: 'output', content: `Calculating upgrade... Done` },
-          { type: 'output', content: `The following packages will be upgraded:` },
-          { type: 'output', content: `  ${upgradable.join(' ')}` },
-          { type: 'output', content: `${upgradable.length} upgraded, 0 newly installed, 0 to remove and 0 not upgraded.` },
-          { type: 'output', content: `Need to get 0 B of archives.` },
-          { type: 'output', content: `After this operation, 0 B of additional disk space will be used.` },
-          { type: 'output', content: `Reading changelogs... Done` },
-          { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` },
-          ...upgradable.map(pkg => ({ type: 'output' as const, content: `Preparing to unpack .../${pkg} ...` })),
-          ...upgradable.map(pkg => ({ type: 'output' as const, content: `Unpacking ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) over (${installed[pkg].version}) ...` })),
-          ...upgradable.map(pkg => ({ type: 'output' as const, content: `Setting up ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) ...` }))
+        const outputLines = [
+          `Reading package lists... Done`,
+          `Building dependency tree... Done`,
+          `Reading state information... Done`,
+          `Calculating upgrade... Done`,
+          `The following packages will be upgraded:`,
+          `  ${upgradable.join(' ')}`,
+          `${upgradable.length} upgraded, 0 newly installed, 0 to remove and 0 not upgraded.`,
+          `Need to get 0 B of archives.`,
+          `After this operation, 0 B of additional disk space will be used.`,
+          `Reading changelogs... Done`,
+          `(Reading database ... 1000 files and directories currently installed.)`,
+          ...upgradable.map(pkg => `Preparing to unpack .../${pkg} ...`),
+          ...upgradable.map(pkg => `Unpacking ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) over (${installed[pkg].version}) ...`),
+          ...upgradable.map(pkg => `Setting up ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) ...`)
         ];
 
         // Update versions
@@ -342,7 +341,7 @@ Description: ${pkg.description}`
         });
         localStorage.setItem(installedKey, JSON.stringify(updatedInstalled));
 
-        return { lines };
+        return { output: outputLines.join('\n') };
       }
     }
 

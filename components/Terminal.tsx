@@ -79,8 +79,9 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
     return JSON.parse(localStorage.getItem(installedKey) || '{}');
   };  const [passwordPrompt, setPasswordPrompt] = useState('');
- const [isRebooting, setIsRebooting] = useState(false);
+  const [isRebooting, setIsRebooting] = useState(false);
   const [installingPackage, setInstallingPackage] = useState<string | null>(null);
+  const [updatingPackages, setUpdatingPackages] = useState(false);
   const [tabCompletionState, setTabCompletionState] = useState<{
     lastInput: string;
     completions: string[];
@@ -209,6 +210,102 @@ export default function Terminal({ setupData, onOpenEditor, onOpenSnake, onOpenB
     }, 300); // 300ms per step, total ~3 seconds
 
     installationIntervalRef.current = interval;
+  };
+
+  const startAptUpdate = (command: string) => {
+    // Clear any existing update
+    if (installationIntervalRef.current) {
+      clearInterval(installationIntervalRef.current);
+      installationIntervalRef.current = null;
+    }
+
+    setUpdatingPackages(true);
+
+    // Simulate timed output like real apt update (input line added by general logic)
+    const updateLines: TerminalLine[] = [
+      { type: 'output', content: 'Ign:1 http://archive.ubuntu.com/ubuntu focal InRelease' },
+      { type: 'output', content: 'Get:2 http://security.ubuntu.com/ubuntu focal-security InRelease [114 kB]' },
+      { type: 'output', content: 'Hit:3 http://archive.ubuntu.com/ubuntu focal-updates InRelease' },
+      { type: 'output', content: 'Get:4 http://archive.ubuntu.com/ubuntu focal-backports InRelease [108 kB]' },
+      { type: 'output', content: 'Fetched 222 kB in 2s (111 kB/s)' },
+      { type: 'output', content: 'Reading package lists... Done' }
+    ];
+
+    // Add each line with delay
+    updateLines.forEach((line, index) => {
+      setTimeout(() => {
+        setLines(prev => [...prev, line]);
+        if (index === updateLines.length - 1) {
+          setUpdatingPackages(false);
+          // Enable upgrades after update
+          AVAILABLE_PACKAGES['nano'].version = '7.0-1';
+        }
+      }, (index + 1) * 300); // 300ms delay per line
+    });
+  };
+
+  const startAptUpgrade = (command: string) => {
+    // Clear any existing upgrade
+    if (installationIntervalRef.current) {
+      clearInterval(installationIntervalRef.current);
+      installationIntervalRef.current = null;
+    }
+
+    setUpdatingPackages(true);
+
+    const installedKey = `linux-sim-installed-packages-${setupData?.playerName || 'user'}`;
+    const installed = JSON.parse(localStorage.getItem(installedKey) || '{}');
+
+    const upgradable = Object.keys(installed).filter(name => {
+      const current = installed[name];
+      const available = AVAILABLE_PACKAGES[name];
+      return available && available.version !== current.version;
+    });
+
+    if (upgradable.length === 0) {
+      setLines(prev => [...prev, { type: 'output', content: 'All packages are up to date.' }]);
+      setUpdatingPackages(false);
+      return;
+    }
+
+    // Add initial lines
+    const initialLines: TerminalLine[] = [
+      { type: 'output', content: `Reading package lists... Done` },
+      { type: 'output', content: `Building dependency tree... Done` },
+      { type: 'output', content: `Reading state information... Done` },
+      { type: 'output', content: `Calculating upgrade... Done` },
+      { type: 'output', content: `The following packages will be upgraded:` },
+      { type: 'output', content: `  ${upgradable.join(' ')}` },
+      { type: 'output', content: `${upgradable.length} upgraded, 0 newly installed, 0 to remove and 0 not upgraded.` },
+      { type: 'output', content: `Need to get 0 B of archives.` },
+      { type: 'output', content: `After this operation, 0 B of additional disk space will be used.` },
+      { type: 'output', content: `Reading changelogs... Done` },
+      { type: 'output', content: `(Reading database ... 1000 files and directories currently installed.)` }
+    ];
+    setLines(prev => [...prev, ...initialLines]);
+
+    // Simulate timed unpacking/setting up
+    const upgradeLines: TerminalLine[] = [
+      ...upgradable.map(pkg => ({ type: 'output' as const, content: `Preparing to unpack .../${pkg} ...` })),
+      ...upgradable.map(pkg => ({ type: 'output' as const, content: `Unpacking ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) over (${installed[pkg].version}) ...` })),
+      ...upgradable.map(pkg => ({ type: 'output' as const, content: `Setting up ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) ...` }))
+    ];
+
+    // Add each line with delay
+    upgradeLines.forEach((line, index) => {
+      setTimeout(() => {
+        setLines(prev => [...prev, line]);
+        if (index === upgradeLines.length - 1) {
+          setUpdatingPackages(false);
+          // Update versions
+          const updatedInstalled = { ...installed };
+          upgradable.forEach(pkg => {
+            updatedInstalled[pkg] = { ...AVAILABLE_PACKAGES[pkg], installedAt: new Date().toISOString() };
+          });
+          localStorage.setItem(installedKey, JSON.stringify(updatedInstalled));
+        }
+      }, (index + 1) * 500); // 500ms delay per line
+    });
   };
 
   const executeCommand = (command: string) => {
@@ -1437,6 +1534,15 @@ Note: This browser displays simulated website content in a graphical interface.
           startPackageInstallation(packageName);
           break;
         }
+        if (args[0] === 'update') {
+          startAptUpdate(command);
+          break;
+        }
+        if (args[0] === 'upgrade') {
+          startAptUpgrade(command);
+          break;
+        }
+
         const result = executeApt(args, command, currentPrompt, setupData, fs, AVAILABLE_PACKAGES, isPackageInstalled);
         const linesToAdd = result.lines;
         if (linesToAdd) {
@@ -1625,11 +1731,12 @@ Examples:
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isRebooting) return; // Ignore input during reboot
+    if (isRebooting || updatingPackages || installingPackage) return; // Ignore input during processes
 
     if (e.key === 'Enter') {
-      executeCommand(currentInput);
+      const command = currentInput;
       setCurrentInput('');
+      executeCommand(command);
       setTabCompletionState(null);
     } else if (e.key === 'Tab') {
       e.preventDefault();

@@ -39,7 +39,7 @@ Expected Behavior
 
 To be done: 
 
-Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. first, I need to improve the simulated realism of the way apt update and apt upgrade appear to the player to work in the game. Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
+Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. first, (------------) Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
 https://github.com/DistortionApplied/simgame.git
 
@@ -324,6 +324,7 @@ Issues Identified
     - geemail account creation is now integrated with the geemail desktop app
     - merged back to main.. i think
     - new improv branch
+    - push for new agent
     x verify email is also saves to the specific user profile.
     x customize sites on mockinternet
         - removed websites we won't use.
@@ -350,9 +351,12 @@ Issues Identified
                 x Needs to be designed and made functional
         - made a little headway
         x improvement needed
-    x strange apt install output bug
-    x apt update and apt upgrade need work
-    x up arrow should include unsuccessful commands as well
+    x strange apt install output bug, seems to be the same as upgrade bug
+    - apt update is mostly fine
+        x could use a few more repos, or ability to add them
+    - apt upgrade almost there
+        x output needs to all be below the command line that it is responding to
+    x up arrow should include unsuccessful commands as well to allow for fast corrections
     x Links on googo need to be worked on
     x terminal needs to save it's history better, a lot gets deleted or cleared along the way when   it shouldn't.
     
