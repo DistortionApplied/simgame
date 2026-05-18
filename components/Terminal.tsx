@@ -1707,13 +1707,11 @@ Examples:
     // Add all lines at once to ensure correct order
     setLines(prev => [...prev, ...newLines]);
 
-    // Add successful command to history (only if no error occurred)
-    if (!error) {
-      const newHistory = [...commandHistory, trimmedCommand];
-      setCommandHistory(newHistory);
-      saveCommandHistory(newHistory);
-      setHistoryIndex(-1);
-    }
+    // Add command to history (including failed commands)
+    const newHistory = [...commandHistory, trimmedCommand];
+    setCommandHistory(newHistory);
+    saveCommandHistory(newHistory);
+    setHistoryIndex(-1);
 
     // Save filesystem state after each command
     fs.saveToLocalStorage();
@@ -1780,16 +1778,17 @@ Examples:
 
     let completions: string[] = [];
 
-    // Special handling for apt command
-    if (prevParts.length > 0 && prevParts[0] === 'apt') {
-      if (prevParts.length === 1) {
-        // Complete apt subcommands
+    // Handle sudo / su prefix (complete the actual command after sudo)
+    const effectivePrev = (prevParts[0] === 'sudo' || prevParts[0] === 'su') ? prevParts.slice(1) : prevParts;
+    const effectiveFirst = effectivePrev[0];
+
+    // Special handling for apt command (including after sudo)
+    if (effectiveFirst === 'apt') {
+      if (effectivePrev.length === 1) {
         completions = getAptSubcommandCompletions(currentPart);
-      } else if (prevParts.length === 2 && (prevParts[1] === 'install' || prevParts[1] === 'remove')) {
-        // Complete package names
+      } else if (effectivePrev.length === 2 && (effectivePrev[1] === 'install' || effectivePrev[1] === 'remove')) {
         completions = getAptPackageCompletions(currentPart);
       } else {
-        // For other apt subcommands, treat as path completion if applicable
         completions = getPathCompletions(currentPart);
       }
     } else {

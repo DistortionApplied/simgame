@@ -128,8 +128,8 @@ SEE ALSO
 
   switch (subcommand) {
     case 'update': {
-      // Simulate package list update
-      const output = `Ign:1 http://archive.ubuntu.com/ubuntu focal InRelease
+      // More realistic apt update simulation (Grey Hack style)
+      const output = `Get:1 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]
 Get:2 http://security.ubuntu.com/ubuntu focal-security InRelease [114 kB]
 Hit:3 http://archive.ubuntu.com/ubuntu focal-updates InRelease
 Get:4 http://archive.ubuntu.com/ubuntu focal-backports InRelease [108 kB]
@@ -140,8 +140,11 @@ Ign:8 http://deb.debian.org/debian stable/contrib InRelease
 Get:9 http://deb.debian.org/debian stable/non-free InRelease [132 kB]
 Hit:10 http://archive.debian.org/debian-security stable-security/updates InRelease
 Get:11 http://archive.debian.org/debian-backports stable-backports/main InRelease [89 kB]
-Fetched 689 kB in 2s (344 kB/s)
-Reading package lists... Done`;
+Fetched 1,060 kB in 3s (353 kB/s)
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+All packages are up to date.`;
       return { lines: output.split('\n').map(line => ({ type: 'output', content: line })) };
     }
 
@@ -325,7 +328,7 @@ Description: ${pkg.description}`;
           `Reading state information... Done`,
           `Calculating upgrade... Done`,
           `The following packages will be upgraded:`,
-          `  ${upgradable.join(' ')}`,
+          `  ${upgradable.join('  ')}`,
           `${upgradable.length} upgraded, 0 newly installed, 0 to remove and 0 not upgraded.`,
           `Need to get 0 B of archives.`,
           `After this operation, 0 B of additional disk space will be used.`,
@@ -333,7 +336,10 @@ Description: ${pkg.description}`;
           `(Reading database ... 1000 files and directories currently installed.)`,
           ...upgradable.map(pkg => `Preparing to unpack .../${pkg} ...`),
           ...upgradable.map(pkg => `Unpacking ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) over (${installed[pkg].version}) ...`),
-          ...upgradable.map(pkg => `Setting up ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) ...`)
+          ...upgradable.map(pkg => `Setting up ${pkg} (${AVAILABLE_PACKAGES[pkg].version}) ...`),
+          `Processing triggers for libc-bin (2.31-0ubuntu9.9) ...`,
+          `Processing triggers for man-db (2.9.1-1) ...`,
+          `Processing triggers for install-info (6.7.0.dfsg.2-6) ...`
         ];
 
         // Update versions

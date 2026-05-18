@@ -1317,7 +1317,98 @@ NOTES
         This command operates within the simulated internet environment and
         returns mock WHOIS data for educational purposes.
 
+ SEE ALSO
+         ping(1), nmap(1), browser(1)
+ `,
+
+  su: `SU(1)                        User Commands                       SU(1)
+
+NAME
+        su - run a command with substitute user and group IDs
+
+SYNOPSIS
+        su [options] [USER]
+
+DESCRIPTION
+        The su command is used to run a command with substitute user and group
+        IDs. When called without arguments, su defaults to running an
+        interactive shell as root.
+
+        In this simulated environment, su allows you to switch to another user
+        account (including root) without requiring a password for testing
+        purposes.
+
+OPTIONS
+        -c, --command COMMAND
+                pass a single COMMAND to the shell with -c
+
+EXAMPLES
+        su
+                Switch to root user.
+
+        su user
+                Switch to the 'user' account.
+
+        su -c "ls /root"
+                Run a command as root.
+
 SEE ALSO
-        ping(1), nmap(1), browser(1)
+        sudo(1), whoami(1), id(1)
+`,
+
+  nano: `NANO(1)                      User Commands                     NANO(1)
+
+NAME
+        nano - Nano's ANOther editor, an enhanced free Pico clone
+
+SYNOPSIS
+        nano [options] [[+LINE[,COLUMN]] FILE]...
+
+DESCRIPTION
+        nano is a small and friendly text editor. It aims to emulate the
+        Pico text editor while also providing a few modern enhancements.
+
+        In this game, nano is available after being installed via apt.
+
+OPTIONS
+        -w, --nowrap
+                do not wrap long lines
+
+EXAMPLES
+        nano file.txt
+                Open file.txt for editing.
+
+        nano
+                Start nano with a new buffer.
+
+SEE ALSO
+        pico(1), vi(1)
+`,
+
+  snake: `SNAKE(1)                     User Commands                    SNAKE(1)
+
+NAME
+        snake - classic Snake game for the terminal
+
+SYNOPSIS
+        snake
+
+DESCRIPTION
+        snake is a simple implementation of the classic Snake game.
+        Control the snake using the arrow keys. Eat food to grow longer.
+        Avoid hitting the walls or yourself.
+
+        The game is available as an APT package.
+
+EXAMPLES
+        snake
+                Start the Snake game.
+
+CONTROLS
+        Arrow Keys    Move the snake
+        q             Quit the game
+
+SEE ALSO
+        apt(1)
 `
 };

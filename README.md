@@ -1,57 +1,67 @@
-"#simgame"
+# simgame
 
-Currently, this is a linux terminal simulator. It will be more... I have many things I will be wanting to work on, but I welcome first, your insight.
+A single-player Linux terminal simulator with a fully simulated mock internet, inspired by *Grey Hack*.
 
-The simgame is a web-based Linux terminal simulator built with Next.js and TypeScript. It provides an interactive experience mimicking a Linux command-line environment for educational or entertainment purposes.
+Built with Next.js and TypeScript. All networking, websites, and services are 100% simulated — no real internet connections.
 
-Expected Behavior
--Boot Sequence: Starts with a simulated boot screen displaying system initialization messages.
+## Features
 
--Authentication: Users log in with a username and password. New users go through a setup wizard to create their account, set a root password, and configure basic system details.
+### Core Linux Terminal
+- Realistic boot sequence and login flow
+- Full virtual filesystem with permissions, users, and persistence (localStorage)
+- Dozens of implemented commands: `ls`, `cd`, `mkdir`, `rm`, `cat`, `nano`, `apt`, `ping`, `nmap`, `ifconfig`, `whois`, `su`, `sudo`, `chmod`, and many more
+- Command history, autocomplete, and `--help` / `man` support
 
--Terminal Interface: After login, users enter a terminal emulator where they can execute Linux commands. The interface displays:
+### Mock Internet (Grey Hack Style)
+- In-game browser with realistic navigation, history, back/refresh/home buttons
+- Procedurally generated websites (Googo, Geemail, Spamazon, ViewTube, Glitchub, Slikipedia, Readdit, Skitter, etc.)
+- DNS resolution, IP addresses, and server simulation
+- `nmap`, `ping`, `whois`, and `ifconfig` integrate with the mock internet
+- All content and services are fully simulated
 
--A prompt showing username, hostname, and current directory (e.g., user@linux-sim:/home/user$)
--Command history and output
--Support for basic editing (backspace, etc.)
--Filesystem Simulation: Uses a virtual filesystem stored in localStorage with:
+### Persistence & Polish
+- Game state (filesystem, users, packages, internet data) saved across sessions
+- Old save data is automatically cleaned up
+- Nano text editor, package management, and user permission system
 
--Full directory structure (/bin, /home, /etc, etc.)
--User accounts and permissions (root and regular users)
--File operations (create, read, write, delete)
--Realistic file metadata (permissions, ownership, timestamps)
--Command Support: Implements numerous Linux commands including:
+## Getting Started
 
--File management: ls, cd, pwd, mkdir, rmdir, touch, rm, cp, mv
--User management: adduser, userdel, passwd, su, sudo
--Permissions: chmod
--Text processing: cat, grep, echo
--System info: whoami, id
--Network simulation: ping, ifconfig
--Package management: apt for installing simulated packages like nano, nmap
--Utilities: clear, help, man, reboot, save, reset
--Text Editor: nano command opens a built-in editor for file modification.
+```bash
+git clone https://github.com/DistortionApplied/simgame.git
+cd simgame
+npm install
+npm run dev
+```
 
--Persistence: Game state (filesystem, users, packages) persists across sessions via localStorage.
+Open http://localhost:3000 in your browser.
 
--Error Handling: Commands validate permissions, file existence, and provide appropriate error messages.
+## Development
 
+- `npm run dev` — Start development server
+- `npm run build` — Production build
+- `npm run lint` — Run ESLint
+- `npm run typecheck` — TypeScript type checking (if configured)
 
-To be done: 
+## Roadmap & Focus Areas
 
 Act as a video game developer. Clone the repo listed below. we will be working from the "improv" branch. Review the game program thoroughly with the goal of understanding the expected behavior of the game and the state of program development.  We have implemented a mock internet, and an in game, simulated browser. I like how the internet works in grey hack single player. I want it as close to that as possible. The game is to function similarly to the game "Grey Hack". Remember, all simulated. No actual networking or links to the outside internet. first, (------------) Make suggestions, but do not make any edits yet. Make absolutely sure that changes you make do not affect any of the game already built. If you need clarification, ask me for clarification.
 
-https://github.com/DistortionApplied/simgame.git
+**Future Goals**
+- More interactive websites (search, email, shopping, forums)
+- Better nmap/port scanning and firewall simulation
+- Additional Grey Hack-inspired mechanics
 
+All networking remains 100% simulated. We maintain strict backward compatibility with existing saves and terminal behavior.
 
+## Contributing
 
-  I like how the internet works in grey hack single player. I want it as close to that as possible. start with improving the mock internet, remember, all simulated, no real networking at all, just like Grey Hack. Make absolutely sure your changes do not interfere with any of the game that has already been built. if you need clarification, ask me for clarification.
+Contributions are welcome! Please keep changes compatible with the existing terminal and persistence systems. Open an issue or pull request to discuss larger changes.
 
+## License
 
-# Context - Current State and Recent Changes
+GPL-3.0
 
-## Project Overview
-Linux terminal simulation game with mock internet functionality inspired by Grey Hack.
+---
 
 
 - **2026-04-02**: Created basic mock internet data structures and DNS system in `lib/internet.ts`
