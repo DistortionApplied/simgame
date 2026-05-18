@@ -107,27 +107,41 @@ export function generateSearchResults(query: string, isLucky: boolean, mockInter
     return `<html><head><meta http-equiv="refresh" content="0; url=http://${firstResult.domain}"></head><body><p>Redirecting to ${firstResult.domain}...</p></body></html>`;
   }
 
-  // Build results page
+  // Build results page (Grey Hack style - more realistic and interactive)
   let results = `<html>
-<head><title>Googo Search - ${query}</title></head>
-<body style="font-family: Arial, sans-serif; margin: 20px;">
+<head>
+  <title>Googo Search - ${query}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #fff; color: #202124; }
+    .result { margin-bottom: 20px; }
+    .result a { color: #1a0dab; text-decoration: none; font-size: 18px; }
+    .result a:hover { text-decoration: underline; }
+    .result .domain { color: #006621; font-size: 14px; }
+    .result .desc { color: #4d5156; font-size: 14px; margin-top: 4px; }
+    h1 { color: #4285f4; }
+  </style>
+</head>
+<body>
 <h1>Googo Search Results</h1>
 <p>Search query: <strong>${query}</strong></p>`;
 
   if (matchingWebsites.length > 0) {
-    results += `<h2>Websites</h2><ul>`;
+    results += `<h2>Websites</h2>`;
     matchingWebsites.slice(0, 10).forEach(w => {
-      results += `<li><a href="http://${w.domain}">${w.title || w.domain}</a> - ${w.domain}</li>`;
+      results += `
+        <div class="result">
+          <a href="http://${w.domain}">${w.title || w.domain}</a>
+          <div class="domain">${w.domain}</div>
+          <div class="desc">${w.title || 'A simulated website in the mock internet.'}</div>
+        </div>`;
     });
-    results += `</ul>`;
   }
 
   if (matchingServers.length > 0) {
-    results += `<h2>Servers</h2><ul>`;
+    results += `<h2>Servers</h2>`;
     matchingServers.slice(0, 10).forEach(s => {
-      results += `<li>${s.hostname || s.ip} (${s.ip})</li>`;
+      results += `<div class="result"><strong>${s.hostname || s.ip}</strong> (${s.ip})</div>`;
     });
-    results += `</ul>`;
   }
 
   if (matchingWebsites.length === 0 && matchingServers.length === 0) {
