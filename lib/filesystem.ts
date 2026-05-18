@@ -104,6 +104,22 @@ export class FakeFileSystem {
 
     // Ensure binary files exist
     this.ensureBinariesExist();
+
+    // Initialize installed packages if first time
+    const installedKey = `linux-sim-installed-packages-${this.setupData?.playerName || 'user'}`;
+    if (!localStorage.getItem(installedKey)) {
+      const initialInstalled = {
+        'nano': { name: 'nano', version: '5.0-1', description: 'small, friendly text editor', maintainer: 'Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>', size: '548 kB', dependencies: [], provides: ['editor'], installedAt: new Date().toISOString() },
+        'nmap': { name: 'nmap', version: '7.80+dfsg1-1', description: 'Nmap - The Network Mapper', maintainer: 'Debian Security Tools <team+pkg-security@tracker.debian.org>', size: '1,234 kB', dependencies: [], provides: ['network-scanner'], installedAt: new Date().toISOString() }
+      };
+      localStorage.setItem(installedKey, JSON.stringify(initialInstalled));
+
+      // Create binaries
+      this.createNewFile('/bin/nano.bin');
+      this.writeFile('/bin/nano.bin', '#!/bin/bash\n# nano text editor binary\n');
+      this.createNewFile('/bin/nmap.bin');
+      this.writeFile('/bin/nmap.bin', '#!/bin/bash\n# nmap network scanner binary\n');
+    }
   }
 
   private createInitialFileSystem(): FileNode {
