@@ -10,6 +10,7 @@ import GeeMail from './GeeMail';
 import Glitchub from './Glitchub';
 import ViewTube from './ViewTube';
 import Skitter from './Skitter';
+import Readdit from './Readdit';
 import { getBrowserBookmarksKey, getBrowserHomeKey, getBrowserHistoryKey, getFromStorage, setInStorage } from '../lib/storage';
 
 
@@ -109,16 +110,17 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
     try {
       urlObj = new URL(currentUrl.startsWith('http') ? currentUrl : 'http://' + currentUrl);
     } catch (error) {
-      // Invalid URL
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentWebsite({
-        domain: currentUrl,
-        ip: '',
-        content: `<html><body><h1>Error</h1><p>Invalid URL: '${currentUrl}'</p></body></html>`,
-        type: 'static',
-        title: 'Error'
+      // Invalid URL - use queueMicrotask to avoid setState-in-effect warning
+      queueMicrotask(() => {
+        setCurrentWebsite({
+          domain: currentUrl,
+          ip: '',
+          content: `<html><body><h1>Error</h1><p>Invalid URL: '${currentUrl}'</p></body></html>`,
+          type: 'static',
+          title: 'Error'
+        });
+        setUrlInput(currentUrl);
       });
-      setUrlInput(currentUrl);
       return;
     }
 
@@ -131,56 +133,60 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
       const query = searchParams.get('q') || '';
       const isLucky = searchParams.has('lucky');
       const searchResults = generateSearchResults(query, isLucky, mockInternet);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentWebsite({
-        domain: 'googo.com',
-        ip: mockInternet.resolveDomain('googo.com') || '',
-        content: searchResults,
-        type: 'static',
-        title: `Googo Search${query ? ` - ${query}` : ''}`
+      queueMicrotask(() => {
+        setCurrentWebsite({
+          domain: 'googo.com',
+          ip: mockInternet.resolveDomain('googo.com') || '',
+          content: searchResults,
+          type: 'static',
+          title: `Googo Search${query ? ` - ${query}` : ''}`
+        });
+        setUrlInput(currentUrl);
       });
-      setUrlInput(currentUrl);
       return;
     }
 
     // Reset search query if not on googo.com or not searching on googo.com
     if (domain !== 'googo.com' || path !== '/search') {
-      setSearchQuery(null);
+      queueMicrotask(() => setSearchQuery(null));
     }
 
     // Try to resolve domain
     const ip = mockInternet.resolveDomain(domain);
     if (!ip) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentWebsite({
-        domain,
-        ip: '',
-        content: `<html><body><h1>Error</h1><p>Unable to resolve host '${domain}'</p></body></html>`,
-        type: 'static',
-        title: 'Error'
+      queueMicrotask(() => {
+        setCurrentWebsite({
+          domain,
+          ip: '',
+          content: `<html><body><h1>Error</h1><p>Unable to resolve host '${domain}'</p></body></html>`,
+          type: 'static',
+          title: 'Error'
+        });
+        setUrlInput(currentUrl);
       });
-      setUrlInput(currentUrl);
       return;
     }
 
     const website = mockInternet.getWebsiteByDomain(domain);
     if (!website) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentWebsite({
-        domain,
-        ip,
-        content: `<html><body><h1>404 Not Found</h1><p>Page not found for '${domain}'</p></body></html>`,
-        type: 'static',
-        title: '404 Not Found'
+      queueMicrotask(() => {
+        setCurrentWebsite({
+          domain,
+          ip,
+          content: `<html><body><h1>404 Not Found</h1><p>Page not found for '${domain}'</p></body></html>`,
+          type: 'static',
+          title: '404 Not Found'
+        });
+        setUrlInput(currentUrl);
       });
-      setUrlInput(currentUrl);
       return;
     }
 
     console.log('Setting currentWebsite for domain:', domain, 'website:', website);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentWebsite(website);
-    setUrlInput(currentUrl);
+    queueMicrotask(() => {
+      setCurrentWebsite(website);
+      setUrlInput(currentUrl);
+    });
   }, [currentUrl, mockInternet]);
 
   const handleUrlSubmit = (e: React.FormEvent) => {
@@ -335,7 +341,7 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
       contentDiv.addEventListener('click', handleContentClick);
       return () => contentDiv.removeEventListener('click', handleContentClick);
     }
-  }, [currentWebsite]);
+  }, [currentWebsite, navigateTo]);
 
   // Listen for navigation messages from embedded content
   React.useEffect(() => {
@@ -565,9 +571,11 @@ export default function GraphicalBrowser({ initialUrl, onClose, mockInternet, se
              <Glitchub setupData={setupData} />
           ) : currentWebsite?.domain === 'viewtube.com' ? (
              <ViewTube setupData={setupData} />
-          ) : currentWebsite?.domain === 'skitter.com' ? (
-             <Skitter setupData={setupData} />
-          ) : currentWebsite ? (
+           ) : currentWebsite?.domain === 'skitter.com' ? (
+              <Skitter setupData={setupData} />
+           ) : currentWebsite?.domain === 'readdit.com' ? (
+              <Readdit setupData={setupData} />
+           ) : currentWebsite ? (
             <div className="max-w-4xl mx-auto p-4">
               <div ref={contentRef} dangerouslySetInnerHTML={{ __html: currentWebsite.content }} />
             </div>
