@@ -37,6 +37,7 @@ export default function GeeMail({ onClose, setupData, mockInternet, isWebsite = 
   });
   const [loginError, setLoginError] = useState('');
   const [currentView, setCurrentView] = useState<'inbox' | 'sent' | 'trash' | 'archive' | 'starred' | 'compose'>('inbox');
+  const toInputRef = useRef<HTMLInputElement>(null);
   const [emails, setEmails] = useState<Email[]>([]);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -304,6 +305,15 @@ admin@geemail.com`,
       };
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  // Auto-focus To field when entering compose mode
+  React.useEffect(() => {
+    if (currentView === 'compose' && toInputRef.current) {
+      setTimeout(() => {
+        toInputRef.current?.focus();
+      }, 100);
+    }
+  }, [currentView]);
 
   // Website mode - show landing page
   if (isWebsite) {
@@ -682,7 +692,7 @@ admin@geemail.com`,
         }}>
           <h2 style={{ color: '#e2e8f0', marginBottom: '16px' }}>Sign in to GeeMail</h2>
           <p style={{ color: '#a0aec0', marginBottom: '24px', maxWidth: '500px' }}>
-            Enter your GeeMail credentials to access your email. Create an account at geemail.com if you don't have one.
+            Enter your GeeMail credentials to access your email. Create an account at geemail.com if you don&apos;t have one.
           </p>
           <form onSubmit={handleLogin} style={{ width: '100%', maxWidth: '360px' }}>
             {loginError && (
@@ -1142,6 +1152,7 @@ admin@geemail.com`,
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '4px', color: '#e2e8f0' }}>To:</label>
               <input
+                ref={toInputRef}
                 type="text"
                 value={composeData.to}
                 onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
